@@ -1,0 +1,243 @@
+"use client";
+import React, { useState, useEffect } from "react";
+import dynamic from "next/dynamic";
+import { useSearchParams, useRouter } from "next/navigation";
+import { useQuery, useMutation } from "convex/react";
+import { api } from "../../../convex/_generated/api";
+import { useEditor, EditorContent, BubbleMenu } from "@tiptap/react";
+import StarterKit from "@tiptap/starter-kit";
+import Placeholder from "@tiptap/extension-placeholder";
+import Link from "@tiptap/extension-link";
+import Image from "@tiptap/extension-image";
+import Underline from "@tiptap/extension-underline";
+import Strike from "@tiptap/extension-strike";
+import Highlight from "@tiptap/extension-highlight";
+import TextAlign from "@tiptap/extension-text-align";
+import Table from "@tiptap/extension-table";
+import TableRow from "@tiptap/extension-table-row";
+import TableCell from "@tiptap/extension-table-cell";
+import TableHeader from "@tiptap/extension-table-header";
+
+export default function RichEditor() {
+  // 1) Always call hooks at the top:
+  const searchParams = useSearchParams();
+  const articleID = searchParams.get("key");
+  const article = useQuery(
+    api.article.getArticleByID,
+    articleID ? { id: articleID } : null
+  );
+
+  // Track the original HTML so we can tell if we've changed
+  const [originalHtml, setOriginalHtml] = useState("");
+
+  // 2) Grab the mutation
+  const updateArticle = useMutation(api.article.updateArticle);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState(null);
+
+  // 3) Editor setup
+  const [html, setHtml] = useState("");
+  const editor = useEditor({
+    extensions: [
+      StarterKit,
+      Underline,
+      Strike,
+      Highlight,
+      TextAlign.configure({ types: ["heading", "paragraph"] }),
+      Link.configure({ openOnClick: false }),
+      Image,
+      Table.configure({ resizable: true }),
+      TableRow,
+      TableCell,
+      TableHeader,
+      Placeholder.configure({ placeholder: "Start writing here…" }),
+    ],
+    content: "",
+    onUpdate: ({ editor }) => setHtml(editor.getHTML()),
+  });
+
+  // 4) Load existing content once fetched
+  useEffect(() => {
+    if (article && editor) {
+      editor.commands.setContent(article.articleContent);
+      setHtml(article.articleContent);
+      setOriginalHtml(article.articleContent);
+    }
+  }, [article, editor]);
+
+  // Determine if the editor content is “dirty”
+  const isDirty = html !== originalHtml;
+
+  // 5) Early returns
+  if (!articleID) return <p>No article key provided.</p>;
+  if (article === undefined) return <p>Loading…</p>;
+  if (article === null) return <p>Article not found.</p>;
+  if (!editor) return null;
+
+  // 6)--- Save handler ---
+  async function handleSave() {
+    setSaving(true);
+    setSaveError(null);
+    try {
+      // Call your mutation with the exact args it expects
+      await updateArticle({
+        articleId: articleID,
+        articleContent: html,
+      });
+      // Once saved, reset the “original” marker
+      setOriginalHtml(html);
+    } catch (err) {
+      console.error("Save error:", err);
+      setSaveError(err?.message || "Unknown error");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="prose max-w-none dark:prose-invert">
+      {/* ===== Static Toolbar (always visible) ===== */}
+      <div className="editor-toolbar sticky top-0 pt-3 bg-white z-10">
+        <button
+          className={
+            editor.isActive("heading", { level: 1 })
+              ? "is-active shadow"
+              : "shadow"
+          }
+          onClick={() =>
+            editor.chain().focus().toggleHeading({ level: 1 }).run()
+          }
+        >
+          H1
+        </button>
+        <button
+          onClick={() =>
+            editor.chain().focus().toggleHeading({ level: 2 }).run()
+          }
+          className={
+            editor.isActive("heading", { level: 2 })
+              ? "shadow font-bold text-blue-600"
+              : "shadow "
+          }
+        >
+          H2
+        </button>
+        <button
+          onClick={() =>
+            editor.chain().focus().toggleHeading({ level: 3 }).run()
+          }
+          className={
+            editor.isActive("heading", { level: 3 })
+              ? "shadow font-bold text-blue-600"
+              : "shadow"
+          }
+        >
+          H3
+        </button>
+        <button
+          onClick={() => editor.chain().focus().setParagraph().run()}
+          className={
+            editor.isActive("paragraph")
+              ? "shadow font-bold text-blue-600"
+              : "shadow "
+          }
+        >
+          P
+        </button>
+        <button
+          type="button"
+          onClick={handleSave}
+          disabled={saving}
+          className={
+            // saving immediately shows gray
+            saving
+              ? "absolute right-0 px-4 py-2 bg-gray-400 text-white cursor-not-allowed rounded transition"
+              : // if not dirty, green (up-to-date)
+                !isDirty
+                ? "absolute right-0 px-4 py-2 bg-green-300 text-white rounded transition"
+                : // if dirty, red
+                  "absolute right-0 px-4 py-2 bg-red-300 hover:bg-red-500 text-white rounded transition"
+          }
+        >
+          {saving ? "Saving…" : "Save Article"}
+        </button>
+      </div>
+
+      {/* ===== Inline BubbleMenu (on text selection) ===== */}
+      <BubbleMenu
+        editor={editor}
+        className="bubble-menu"
+        tippyOptions={{ duration: 100 }}
+      >
+        <button
+          className={editor.isActive("bold") ? "is-active" : ""}
+          onClick={() => editor.chain().focus().toggleBold().run()}
+        >
+          B
+        </button>
+        <button
+          className={editor.isActive("italic") ? "is-active" : ""}
+          onClick={() => editor.chain().focus().toggleItalic().run()}
+        >
+          I
+        </button>
+        <button
+          className={editor.isActive("underline") ? "is-active" : ""}
+          onClick={() => editor.chain().focus().toggleUnderline().run()}
+        >
+          U
+        </button>
+        <button
+          className={editor.isActive("strike") ? "is-active" : ""}
+          onClick={() => editor.chain().focus().toggleStrike().run()}
+        >
+          Strike
+        </button>
+        <button
+          className={editor.isActive("highlight") ? "is-active" : ""}
+          onClick={() => editor.chain().focus().toggleHighlight().run()}
+        >
+          Highlight
+        </button>
+        <button
+          className={editor.isActive("link") ? "is-active" : ""}
+          onClick={() => {
+            const url = prompt("Link URL");
+            if (url)
+              editor
+                .chain()
+                .focus()
+                .extendMarkRange("link")
+                .setLink({ href: url })
+                .run();
+          }}
+        >
+          Link
+        </button>
+        <button
+          className={
+            !editor.isActive("link") && editor.getAttributes("link").href
+              ? ""
+              : ""
+          }
+          onClick={() => editor.chain().focus().unsetLink().run()}
+        >
+          Unlink
+        </button>
+      </BubbleMenu>
+      {/* Save status */}
+      {saveError && (
+        <p className="mt-2 text-red-600">Error saving: {saveError}</p>
+      )}
+      {/* ===== The editable area ===== */}
+      <EditorContent
+        editor={editor}
+        className="border p-4 rounded max-w-none dark:bg-gray-800 dark:text-gray-100"
+      />
+
+      {/* ===== HTML payload preview ===== */}
+      <h4 className="mt-6 font-semibold">HTML Payload:</h4>
+      <pre className="p-4 bg-gray-100 rounded overflow-auto">{html}</pre>
+    </div>
+  );
+}

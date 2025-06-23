@@ -1,0 +1,26 @@
+// page.js or page.tsx (App Router)
+"use client";
+
+import dynamic from "next/dynamic";
+import "./styles.scss";
+// Adjust the path so it matches your folder structure
+const BlogEditor = dynamic(() => import("./_components/BlogEditor"), {
+  ssr: false,
+});
+export default function Page() {
+  // const BlogEditor = dynamic(() => import("./_components/BlogEditor"), {
+  //   ssr: false, // disable server-side rendering
+  // });
+  return (
+    <div className="flex tiptap-content flex-1 flex-col gap-4 p-4 pt-0">
+      <div className="editor-wrapper dark:bg-gray-200 min-h-[100vh] flex-1 rounded-xl md:min-h-min">
+        <BlogEditor />
+      </div>
+      <div className="grid auto-rows-min gap-4 md:grid-cols-3">
+        <div className="bg-muted/50 aspect-video rounded-xl" />
+        <div className="bg-muted/50 aspect-video rounded-xl" />
+        <div className="bg-muted/50 aspect-video rounded-xl" />
+      </div>
+    </div>
+  );
+}
