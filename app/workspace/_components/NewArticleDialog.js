@@ -36,7 +36,7 @@ function NewArticleDialog({ children }) {
     // Step 3: Save the newly allocated storage id to the database
     const resp = await createArticle({
       articleID: articleId,
-      articleContent: "Dummy Content",
+      articleContent: "<p>Lets Start Writing</p>",
       creationDate: Date.now(),
       articleName: articleName ?? "Untitled Article",
       createdBy: user?.primaryEmailAddress?.emailAddress,

@@ -15,11 +15,16 @@ function SideBar() {
         </NewArticleDialog>
         <div className="flex gap-2 items-center p-3 mt-3 hover:bg-slate-100 rounded-lg cursor-pointer">
           <Layout />
-          <h2> Workspace</h2>
+          <h2>
+            <a href="/workspace">Workspace</a>
+          </h2>
         </div>
         <div className="flex gap-2 items-center p-3 mt-1 hover:bg-slate-100 rounded-lg cursor-pointer">
           <Shield />
-          <h2> Upgrade</h2>
+          <h2>
+            {" "}
+            <a href="/dashboard">Dashboard</a>
+          </h2>
         </div>
       </div>
       <div className="absolute bottom-20 w-[80%]">

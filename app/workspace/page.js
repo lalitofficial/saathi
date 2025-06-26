@@ -13,7 +13,7 @@ function Dashboard() {
       <div className="rounded m-2 text-black dark:bg-gray-800 p-2">
         <ul className="grid grid-cols-4 gap-2">
           <li className="bg-white shadow m-2 p-3 rounded">
-            <a className="text-blue" href="#">
+            <a className="text-blue" href="/workspace/title-analyzer">
               <strong> Title Analyser</strong>
             </a>
             <br />
