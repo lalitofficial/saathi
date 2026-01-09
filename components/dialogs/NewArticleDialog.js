@@ -13,27 +13,24 @@ import {
   DialogClose,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { useMutation } from "convex/react";
-import { api } from "@/convex/_generated/api";
 import { Loader2Icon } from "lucide-react";
-import uuid4 from "uuid4";
 import { useUser } from "@clerk/nextjs";
 
 function NewArticleDialog({ children }) {
-  const createArticle = useMutation(api.article.createArticle);
   const [articleName, setArticleName] = useState();
   const { user } = useUser();
   const [loading, setLoading] = useState(false);
 
   const onUpload = async () => {
     setLoading(true);
-    const articleId = uuid4();
-    await createArticle({
-      articleID: articleId,
-      articleContent: "<p>Lets Start Writing</p>",
-      creationDate: Date.now(),
-      articleName: articleName ?? "Untitled Article",
-      createdBy: user?.primaryEmailAddress?.emailAddress,
+    await fetch("/api/articles", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        articleName: articleName ?? "Untitled Article",
+        articleContent: "<p>Lets Start Writing</p>",
+        createdBy: user?.primaryEmailAddress?.emailAddress,
+      }),
     });
     setLoading(false);
   };

@@ -1,12 +1,31 @@
 "use client";
-import { useQuery } from "convex/react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { api } from "../../convex/_generated/api";
 
 function Dashboard() {
-  const articles = useQuery(api.article.getArticles);
+  const [articles, setArticles] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  if (articles === undefined) return <p>Loading...</p>;
+  useEffect(() => {
+    let isMounted = true;
+    async function loadArticles() {
+      try {
+        const response = await fetch("/api/articles");
+        const payload = await response.json();
+        if (isMounted) {
+          setArticles(payload?.data || []);
+        }
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    }
+    loadArticles();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  if (loading) return <p>Loading...</p>;
 
   return (
     <div className="m-4 rounded-2xl border border-slate-200/80 bg-white/70 p-4 text-slate-900 shadow-sm dark:border-slate-800/60 dark:bg-slate-900/40 dark:text-slate-100">
@@ -23,12 +42,12 @@ function Dashboard() {
       <ul className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
         {articles.map((article) => (
           <li
-            key={article._id}
+            key={article.id}
             className="rounded-2xl border border-slate-200 bg-white p-4 shadow-md transition hover:-translate-y-1 hover:border-slate-300 dark:border-slate-800/80 dark:bg-slate-950/70 dark:shadow-black/30 dark:hover:border-slate-700"
           >
             <Link
               className="text-base font-semibold text-sky-600 transition hover:text-sky-500 dark:text-sky-300 dark:hover:text-sky-200"
-              href={`/editor?key=${article._id}`}
+              href={`/editor?key=${article.id}`}
             >
               {article.articleName}
             </Link>
@@ -37,7 +56,7 @@ function Dashboard() {
               Article ID
             </p>
             <p className="truncate text-sm text-slate-600 dark:text-slate-300">
-              {article._id}
+              {article.id}
             </p>
             <p className="mt-3 text-xs uppercase tracking-wide text-slate-500 dark:text-slate-500">
               Owner

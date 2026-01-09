@@ -13,17 +13,10 @@ import {
   DialogClose,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { useConvex, useMutation } from "convex/react";
-import { api } from "@/convex/_generated/api";
 import { Loader2Icon } from "lucide-react";
-import uuid4 from "uuid4";
 import { useUser } from "@clerk/nextjs";
 
 function UploadPdfDialog({ children }) {
-  const generateUploadUrl = useMutation(api.fileStorage.generateUploadUrl);
-  const addFileEntry = useMutation(api.fileStorage.addFileEntryToDb);
-  const convex = useConvex();
-
   const [fileName, setFileName] = useState();
   const { user } = useUser();
   const [file, setFile] = useState();
@@ -36,23 +29,22 @@ function UploadPdfDialog({ children }) {
   const onUpload = async () => {
     setLoading(true);
 
-    const postUrl = await generateUploadUrl();
-    const result = await fetch(postUrl, {
+    if (!file) {
+      setLoading(false);
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("fileName", fileName ?? "Untitled File");
+    formData.append(
+      "createdBy",
+      user?.primaryEmailAddress?.emailAddress ?? ""
+    );
+
+    await fetch("/api/files", {
       method: "POST",
-      headers: { "Content-Type": file?.type },
-      body: file,
-    });
-    const { storageId } = await result.json();
-    const fileId = uuid4();
-    const fileUrl = await convex.query(api.fileStorage.getFileUrl, {
-      storageId,
-    });
-    await addFileEntry({
-      fileID: fileId,
-      storageId,
-      fileUrl,
-      fileName: fileName ?? "Untitled File",
-      createdBy: user?.primaryEmailAddress?.emailAddress,
+      body: formData,
     });
     setLoading(false);
   };

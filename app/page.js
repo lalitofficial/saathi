@@ -1,19 +1,19 @@
 "use client";
 import { Button } from "@/components/ui/button";
-import { api } from "@/convex/_generated/api";
 import { UserButton, useUser } from "@clerk/nextjs";
-import { useMutation } from "convex/react";
 import { useEffect } from "react";
 import Link from "next/link";
 export default function Home() {
   const { user } = useUser();
-  const createUser = useMutation(api.user.createUser);
-
   const checkUser = async () => {
-    await createUser({
-      email: user?.primaryEmailAddress.emailAddress,
-      imageUrl: user?.imageUrl,
-      userName: user?.fullName,
+    await fetch("/api/users", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email: user?.primaryEmailAddress?.emailAddress,
+        imageUrl: user?.imageUrl,
+        userName: user?.fullName,
+      }),
     });
   };
 

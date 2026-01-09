@@ -1,8 +1,6 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
-import { useQuery, useMutation } from "convex/react";
-import { api } from "../../../convex/_generated/api";
 import { useEditor, EditorContent, BubbleMenu } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
@@ -21,16 +19,12 @@ export default function RichEditor() {
   // 1) Always call hooks at the top:
   const searchParams = useSearchParams();
   const articleID = searchParams.get("key");
-  const article = useQuery(
-    api.article.getArticleByID,
-    articleID ? { id: articleID } : null
-  );
+  const [article, setArticle] = useState(null);
+  const [loading, setLoading] = useState(Boolean(articleID));
 
   // Track the original HTML so we can tell if we've changed
   const [originalHtml, setOriginalHtml] = useState("");
 
-  // 2) Grab the mutation
-  const updateArticle = useMutation(api.article.updateArticle);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState(null);
 
@@ -57,6 +51,31 @@ export default function RichEditor() {
 
   // 4) Load existing content once fetched
   useEffect(() => {
+    let isMounted = true;
+    async function loadArticle() {
+      if (!articleID) {
+        setLoading(false);
+        return;
+      }
+      try {
+        const response = await fetch(`/api/articles/${articleID}`);
+        const payload = await response.json();
+        if (isMounted) {
+          setArticle(payload?.data ?? null);
+        }
+      } catch {
+        if (isMounted) setArticle(null);
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    }
+    loadArticle();
+    return () => {
+      isMounted = false;
+    };
+  }, [articleID]);
+
+  useEffect(() => {
     if (article && editor) {
       editor.commands.setContent(article.articleContent);
       setHtml(article.articleContent);
@@ -69,7 +88,7 @@ export default function RichEditor() {
 
   // 5) Early returns
   if (!articleID) return <p>No article key provided.</p>;
-  if (article === undefined) return <p>Loading…</p>;
+  if (loading) return <p>Loading…</p>;
   if (article === null) return <p>Article not found.</p>;
   if (!editor) return null;
 
@@ -78,11 +97,15 @@ export default function RichEditor() {
     setSaving(true);
     setSaveError(null);
     try {
-      // Call your mutation with the exact args it expects
-      await updateArticle({
-        articleId: articleID,
-        articleContent: html,
+      const response = await fetch(`/api/articles/${articleID}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ articleContent: html }),
       });
+      if (!response.ok) {
+        const payload = await response.json();
+        throw new Error(payload?.error || "Save failed");
+      }
       // Once saved, reset the “original” marker
       setOriginalHtml(html);
     } catch (err) {

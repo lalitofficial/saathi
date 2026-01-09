@@ -2,9 +2,7 @@
 "use client";
 
 import { useRef, useState, useEffect } from "react";
-import { useQuery } from "convex/react";
 import { AppSidebar } from "@/components/ui/app-sidebar";
-import { SidebarRight } from "@/components/ui/sidebar-right";
 import "./styles.scss";
 import {
   Breadcrumb,
@@ -22,15 +20,12 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 import SideBar from "./_components/SideBar";
-import { api } from "../../convex/_generated/api";
 
 export default function Page({ children }) {
   const searchParams = useSearchParams();
   const articleID = searchParams.get("key");
-  const article = useQuery(
-    api.article.getArticleByID,
-    articleID ? { id: articleID } : null
-  );
+  const [article, setArticle] = useState(null);
+  const [loading, setLoading] = useState(Boolean(articleID));
 
   const containerRef = useRef(null);
   const rightRef = useRef(null);
@@ -73,6 +68,32 @@ export default function Page({ children }) {
     };
   }, []);
 
+  useEffect(() => {
+    let isMounted = true;
+    async function loadArticle() {
+      if (!articleID) {
+        setArticle(null);
+        setLoading(false);
+        return;
+      }
+      try {
+        const response = await fetch(`/api/articles/${articleID}`);
+        const payload = await response.json();
+        if (isMounted) {
+          setArticle(payload?.data ?? null);
+        }
+      } catch {
+        if (isMounted) setArticle(null);
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    }
+    loadArticle();
+    return () => {
+      isMounted = false;
+    };
+  }, [articleID]);
+
   function handleMouseDown(e) {
     dragging.current = true;
     startX.current = e.clientX;
@@ -102,7 +123,7 @@ export default function Page({ children }) {
                     <BreadcrumbSeparator className="hidden md:block" />
                     <BreadcrumbItem>
                       <BreadcrumbPage>
-                        {article === undefined
+                        {loading
                           ? "Loading..."
                           : article === null
                             ? "Not Found"
