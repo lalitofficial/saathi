@@ -7,22 +7,20 @@ export const createUser = mutation({
     imageUrl: v.string(),
   },
   handler: async (ctx, args) => {
-    // if user alsrready exist
     const user = await ctx.db
       .query("users")
-      .filter((q) => q.eq(q.field("email"), args.email))
-      .collect();
+      .withIndex("by_email", (q) => q.eq("email", args.email))
+      .unique();
 
-    // if notm then insert new user entry
-    if (user?.length == 0) {
+    if (!user) {
       await ctx.db.insert("users", {
         email: args.email,
         userName: args.userName,
         imageUrl: args.imageUrl,
       });
 
-      return "Inserted New User....";
+      return "Inserted new user.";
     }
-    return "User Already Exits...";
+    return "User already exists.";
   },
 });

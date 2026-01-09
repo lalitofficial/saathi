@@ -12,7 +12,7 @@ import {
   DialogClose,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { useMutation } from "convex/react";
+import { useConvex, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Loader2Icon } from "lucide-react";
 import uuid4 from "uuid4";
@@ -21,7 +21,7 @@ import { useUser } from "@clerk/nextjs";
 function UploadPdfDialog({ children }) {
   const generateUploadUrl = useMutation(api.fileStorage.generateUploadUrl);
   const addFileEntry = useMutation(api.fileStorage.addFileEntryToDb);
-  const getFileUrl = useMutation(api.fileStorage.getFileUrl);
+  const convex = useConvex();
 
   const [fileName, setFileName] = useState();
   const { user } = useUser();
@@ -45,7 +45,9 @@ function UploadPdfDialog({ children }) {
     const { storageId } = await result.json();
     console.log("Storage ID: ", storageId);
     const fileId = uuid4();
-    const fileUrl = await getFileUrl({ storageId: storageId });
+    const fileUrl = await convex.query(api.fileStorage.getFileUrl, {
+      storageId,
+    });
     // Step 3: Save the newly allocated storage id to the database
     const resp = await addFileEntry({
       fileID: fileId,
