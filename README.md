@@ -4,28 +4,28 @@
 
 # Saathi
 
-Saathi is an AI powered SEO workspace for PDF-based content and article editing. It combines a Next.js UI, a rich text editor, and Convex-backed storage with Clerk authentication to streamline content creation and SEO review.
+Saathi is an AI powered SEO workspace for PDF-based content and article editing. It combines a Next.js UI, a rich text editor, and a PostgreSQL-backed data layer with Clerk authentication to streamline content creation and SEO review.
 
 ## Overview
 
-- Upload PDFs and store metadata in Convex.
+- Upload PDFs and store metadata in PostgreSQL.
 - Edit and manage articles with a TipTap-based editor.
 - Run an SEO audit against any URL through a dedicated API route.
 - Work inside a Next.js App Router UI with Clerk authentication.
 
 ## Key Features
 
-- PDF upload flow with Convex storage.
+- PDF upload flow with stored metadata and local file storage.
 - Rich text editing with TipTap.
 - SEO analyzer API with HTML parsing and Puppeteer fallback.
 - Modular UI components for dashboard and workspace.
-- Convex schema for users, articles, and PDF files.
+- Prisma schema for users, articles, and PDF files.
 
 ## Tech Stack
 
 - Next.js 15 (App Router)
 - React 19
-- Convex (database, storage, functions)
+- PostgreSQL + Prisma
 - Clerk (auth)
 - TipTap editor
 - Puppeteer + Cheerio (SEO analysis)
@@ -35,7 +35,7 @@ Saathi is an AI powered SEO workspace for PDF-based content and article editing.
 
 - `app/` Next.js routes, pages, and API handlers
 - `components/` shared UI and layout components
-- `convex/` database schema and functions
+- `prisma/` database schema and migrations
 - `public/` static assets
 
 ## Getting Started
@@ -44,7 +44,7 @@ Saathi is an AI powered SEO workspace for PDF-based content and article editing.
 
 - Node.js 18+
 - npm
-- Convex CLI (`npx convex dev`)
+- PostgreSQL database (local or hosted)
 
 ### Install
 
@@ -57,9 +57,9 @@ npm install
 Create `.env.local`:
 
 ```bash
-NEXT_PUBLIC_CONVEX_URL=
 NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=
 CLERK_SECRET_KEY=
+DATABASE_URL=postgresql://USER:PASSWORD@HOST:5432/DB_NAME
 PDF_LOADER_URL=
 ```
 
@@ -69,15 +69,9 @@ Notes:
 
 ### Run Locally
 
-Terminal 1:
-
 ```bash
-npx convex dev
-```
-
-Terminal 2:
-
-```bash
+npm install
+npx prisma migrate dev --name init
 npm run dev
 ```
 
@@ -87,8 +81,8 @@ Open `http://localhost:3000`.
 
 Start:
 
-1. Run Convex in one terminal: `npx convex dev`.
-2. Run the Next.js app in another: `npm run dev`.
+1. Run migrations: `npx prisma migrate dev --name init`.
+2. Run the Next.js app: `npm run dev`.
 3. Open `http://localhost:3000`.
 
 Use:
@@ -97,7 +91,7 @@ Use:
 2. Go to the Dashboard to view your articles list.
 3. Click **+ New Article** to create an article.
 4. Open an article to use the editor and start writing.
-5. Use **Upload PDF** to attach and store PDFs in Convex.
+5. Use **Upload PDF** to attach and store PDFs locally.
 6. Use the Workspace tools (like the title analyzer) to review content quality.
 
 ## API
@@ -150,6 +144,12 @@ Response:
 }
 ```
 
+## File Uploads
+
+PDFs uploaded through the UI are saved to `public/uploads` in local development,
+and their metadata is stored in PostgreSQL. For production, swap this for a
+managed object store (S3, GCS, etc).
+
 ## Scripts
 
 - `npm run dev` start dev server
@@ -160,7 +160,7 @@ Response:
 ## Deployment
 
 - Vercel is the recommended target for Next.js.
-- Ensure Convex is deployed and environment variables are set in your hosting provider.
+- Ensure your PostgreSQL database is reachable and `DATABASE_URL` is set.
 
 ## License
 

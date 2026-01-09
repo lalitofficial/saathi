@@ -53,7 +53,7 @@ export default function Home() {
         {[
           {
             title: "PDF Uploads",
-            detail: "Store and organize reference documents in Convex.",
+            detail: "Store and organize reference documents with PostgreSQL.",
           },
           {
             title: "Live Editing",
