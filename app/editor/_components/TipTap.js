@@ -11,7 +11,7 @@ const MenuBar = ({ editor }) => {
   }
 
   return (
-    <div className="control-group dark:bg-gray-200 rounded">
+    <div className="control-group rounded bg-white/80 dark:bg-slate-800/80">
       <div className="button-group ">
         <button
           onClick={() =>

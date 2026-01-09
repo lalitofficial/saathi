@@ -5,7 +5,7 @@ const SearchPreview = ({ headline }) => {
     headline?.trim() ||
     "Types Of Coffee Drinks Explained: A Beginner’s Guide";
   return (
-    <div className="ha-search-preview max-w-5xl mx-auto  text-[14px] h-[480px] shadow-[0_60px_193px_rgba(24,39,75,0.1)] rounded-t-[21px] overflow-hidden cursor-default">
+    <div className="ha-search-preview mx-auto h-[480px] max-w-5xl cursor-default rounded-t-[21px] border border-slate-200 bg-white text-[14px] shadow-[0_60px_193px_rgba(24,39,75,0.1)]">
       {/* Browser Bar */}
       <div className="ha-search-preview__browser-bar h-[80px] bg-[#f3f4f5] mb-[60px] flex items-center px-4">
         <div className="browser-bar__dots mx-[2rem]">

@@ -5,20 +5,20 @@ import HeadlineStatsGrid from "./_components/HeadlineStatsGrid";
 import SearchPreview from "./_components/SearchPreview";
 function page() {
   return (
-    <div className="rounded flex gap-2 flex-col m-2 text-black dark:bg-gray-800 p-2">
-      <div className="shadow pb-8 mb-6 text-center rounded ">
-        <h1 className="text-4xl pt-3 text-gray-800 my-3 font-bold">
+    <div className="m-4 flex flex-col gap-4 rounded-2xl border border-slate-200/80 bg-white/70 p-4 text-slate-900 shadow-sm dark:border-slate-800/60 dark:bg-slate-900/40 dark:text-slate-100">
+      <div className="rounded-2xl border border-slate-200/80 bg-white px-6 py-8 text-center shadow-lg dark:border-slate-800/60 dark:bg-slate-950/70 dark:shadow-black/30">
+        <h1 className="my-3 text-3xl font-semibold text-slate-900 md:text-4xl dark:text-white">
           Meta Title Analysis Tool
         </h1>
         <div className="my-5">
-          <form className="flex items-center w-[40vw] h-[4rem] mx-auto my-3">
+          <form className="mx-auto flex h-[4rem] w-full max-w-3xl items-center">
             <label htmlFor="simple-search" className="sr-only">
               Search
             </label>
             <div className="relative w-full">
               <div className="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none">
                 <svg
-                  className="w-4 h-4 text-gray-500 dark:text-gray-400"
+                  className="h-4 w-4 text-slate-500"
                   aria-hidden="true"
                   xmlns="http://www.w3.org/2000/svg"
                   fill="none"
@@ -36,14 +36,14 @@ function page() {
               <input
                 type="text"
                 id="simple-search"
-                className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full ps-10 p-2.5  dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
+                className="block w-full rounded-lg border border-slate-300 bg-white px-10 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:border-sky-500 focus:ring-sky-500 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-100 dark:placeholder-slate-500 dark:focus:border-sky-400 dark:focus:ring-sky-400"
                 placeholder="Analyse Meta Title..."
                 required=""
               />
             </div>
             <button
               type="submit"
-              className="p-2.5 ms-2 text-sm font-medium text-white bg-blue-700 rounded-lg border border-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800"
+              className="ms-2 rounded-lg border border-sky-600 bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:border-sky-500 hover:bg-sky-500 focus:outline-none focus:ring-4 focus:ring-sky-300/40 dark:border-sky-400 dark:bg-sky-400 dark:text-slate-900 dark:hover:border-sky-300 dark:hover:bg-sky-300"
             >
               <svg
                 className="w-4 h-4"
@@ -66,24 +66,24 @@ function page() {
         </div>
       </div>
       {/* bg-[#f5faff] */}
-      <div className="shadow p-3 rounded  ">
-        <div className="py-8  rounded-lg max-w-5xl mx-auto flex flex-col md:flex-row justify-between gap-6">
+      <div className="rounded-2xl border border-slate-200/80 bg-white p-3 shadow-lg dark:border-slate-800/60 dark:bg-slate-950/70 dark:shadow-black/30">
+        <div className="mx-auto flex max-w-5xl flex-col justify-between gap-6 rounded-lg py-8 md:flex-row">
           {/* Left section: Analysis */}
           <div className="flex-1">
             <div className="flex flex-col">
-              <h2 className="text-xl font-semibold text-gray-800 mb-4">
+              <h2 className="mb-4 text-xl font-semibold text-slate-900 dark:text-slate-100">
                 Headline Analysis for:
               </h2>
-              <span className="text-2xl font-bold text-[#1b2a3d] pb-6">
-                “Types Of Coffee Drinks Explained: A Beginner’s Guide”
+              <span className="pb-6 text-2xl font-bold text-slate-900 dark:text-slate-100">
+                "Types Of Coffee Drinks Explained: A Beginner's Guide"
               </span>
             </div>
             <div className="flex flex-row">
               <div>
-                <h3 className="text-lg block font-semibold text-gray-700 mb-2">
+                <h3 className="mb-2 block text-lg font-semibold text-slate-700 dark:text-slate-200">
                   Overall Site Score
                 </h3>
-                <p className="text-gray-600 mb-6 leading-relaxed">
+                <p className="mb-6 leading-relaxed text-slate-600 dark:text-slate-400">
                   A very good score is between <strong>60 and 80</strong>. For
                   best results, you should strive for{" "}
                   <strong>70 and above</strong>.
@@ -91,40 +91,40 @@ function page() {
               </div>
 
               {/* Score Ring */}
-              <div className="flex flex-col items-center justify-center text-center text-orange-500 max-w-[200px]">
+              <div className="flex max-w-[200px] flex-col items-center justify-center text-center text-orange-500 dark:text-orange-400">
                 <CircularScore score={54} />
               </div>
             </div>
           </div>
 
           {/* Right section: History */}
-          <div className="bg-white rounded-lg p-6 shadow w-full md:w-1/3">
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">
+          <div className="w-full rounded-2xl border border-slate-200/80 bg-white p-6 shadow-md dark:border-slate-800/70 dark:bg-slate-900/70 dark:shadow-black/20 md:w-1/3">
+            <h3 className="mb-4 text-lg font-semibold text-slate-900 dark:text-slate-100">
               Score History
             </h3>
             <div className="flex items-start gap-4">
-              <div className="bg-orange-500 text-white px-3 py-1 rounded-full text-lg font-bold">
+              <div className="rounded-full bg-orange-500 px-3 py-1 text-lg font-bold text-white">
                 54
               </div>
               <div>
-                <p className="text-blue-600 font-semibold leading-snug">
-                  Types Of Coffee Drinks Explained: A Beginner’s Guide
+                <p className="font-semibold leading-snug text-sky-600 dark:text-sky-300">
+                  Types Of Coffee Drinks Explained: A Beginner's Guide
                 </p>
               </div>
             </div>
-            <button className="mt-4 bg-gray-100 hover:bg-gray-200 text-gray-800 text-sm px-4 py-2 rounded">
+            <button className="mt-4 rounded-lg border border-slate-300 bg-slate-100 px-4 py-2 text-sm text-slate-700 transition hover:bg-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">
               Clear Score History
             </button>
           </div>
         </div>
       </div>
-      <div className="shadow bg-white p-6">
+      <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-md dark:border-slate-800/60 dark:bg-slate-950/70 dark:shadow-black/20">
         <WordBalanceCard />
       </div>
-      <div className="shadow bg-white p-6">
+      <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-md dark:border-slate-800/60 dark:bg-slate-950/70 dark:shadow-black/20">
         <HeadlineStatsGrid />
       </div>
-      <div className="shadow bg-white p-6 pb-0">
+      <div className="rounded-2xl border border-slate-200/80 bg-white p-6 pb-0 shadow-md dark:border-slate-800/60 dark:bg-slate-950/70 dark:shadow-black/20">
         <SearchPreview headline="Your Dynamic Headline Here" />
       </div>
     </div>

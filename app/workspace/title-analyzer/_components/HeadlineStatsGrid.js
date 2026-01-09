@@ -42,70 +42,93 @@ const headlineMetrics = [
 ];
 
 const HeadlineStatsGrid = () => {
-  return (
-    <section className="flex py-8 max-w-5xl mx-auto flex-wrap justify-between gap-6">
-      {headlineMetrics.map((metric, index) => (
-        <div
-          key={index}
-          className={`flex flex-wrap bg-white rounded-lg shadow p-4 w-full md:w-[48%] border border-${metric.statusColor}-200`}
-        >
-          <div className="flex items-center justify-center w-[92px] h-[92px] relative mr-6">
-            {metric.showSvg ? (
-              <>
-                <svg
-                  viewBox="0 0 33.831 33.831"
-                  className="w-full h-full -rotate-90"
-                >
-                  <circle
-                    fill="none"
-                    stroke="#cbeae1"
-                    strokeWidth="2"
-                    cx="16.915"
-                    cy="16.915"
-                    r="15.915"
-                  />
-                  <circle
-                    stroke="currentColor"
-                    fill="none"
-                    strokeWidth="2"
-                    strokeDasharray={metric.dasharray}
-                    strokeLinecap="round"
-                    cx="16.915"
-                    cy="16.915"
-                    r="15.915"
-                  />
-                </svg>
-                <div className="absolute text-center">
-                  <div className="text-2xl font-bold text-gray-800">
-                    {metric.value}
-                  </div>
-                </div>
-              </>
-            ) : (
-              <div
-                className={`w-[70px] h-[70px] rounded-full flex items-center justify-center text-3xl bg-${metric.statusColor}-100 text-${metric.statusColor}-600`}
-              >
-                {metric.value}
-              </div>
-            )}
-          </div>
+  const statusStyles = {
+    green: {
+      card: "border-emerald-500/30 bg-emerald-500/5",
+      ring: "text-emerald-500 dark:text-emerald-400",
+      badge: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-300",
+      dot: "bg-emerald-400",
+      text: "text-emerald-600 dark:text-emerald-400",
+    },
+    blue: {
+      card: "border-sky-500/30 bg-sky-500/5",
+      ring: "text-sky-500 dark:text-sky-400",
+      badge: "bg-sky-500/15 text-sky-600 dark:text-sky-300",
+      dot: "bg-sky-400",
+      text: "text-sky-600 dark:text-sky-400",
+    },
+  };
 
-          <div className="flex-1">
-            <h3 className="text-lg font-semibold text-gray-900 mb-1">
-              {metric.title}
-            </h3>
-            <div
-              className={`text-${metric.statusColor}-600 font-semibold text-sm mb-2 flex items-center gap-2`}
-            >
-              <span
-                className={`inline-block w-4 h-4 bg-${metric.statusColor}-500 rounded-full`}
-              ></span>
-              {metric.status}
+  return (
+    <section className="mx-auto flex max-w-5xl flex-wrap justify-between gap-6 py-8">
+      {headlineMetrics.map((metric, index) => {
+        const styles = statusStyles[metric.statusColor];
+        return (
+          <div
+            key={index}
+            className={`flex w-full flex-wrap rounded-2xl border p-4 shadow-md shadow-slate-200/80 md:w-[48%] ${styles.card} dark:shadow-black/20`}
+          >
+            <div className="relative mr-6 flex h-[92px] w-[92px] items-center justify-center">
+              {metric.showSvg ? (
+                <>
+                  <svg
+                    viewBox="0 0 33.831 33.831"
+                    className={`h-full w-full -rotate-90 ${styles.ring}`}
+                  >
+                    <circle
+                      fill="none"
+                      stroke="currentColor"
+                      opacity="0.25"
+                      strokeWidth="2"
+                      cx="16.915"
+                      cy="16.915"
+                      r="15.915"
+                    />
+                    <circle
+                      stroke="currentColor"
+                      fill="none"
+                      strokeWidth="2"
+                      strokeDasharray={metric.dasharray}
+                      strokeLinecap="round"
+                      cx="16.915"
+                      cy="16.915"
+                      r="15.915"
+                    />
+                  </svg>
+                  <div className="absolute text-center">
+                    <div className="text-2xl font-bold text-slate-900 dark:text-slate-100">
+                      {metric.value}
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div
+                  className={`flex h-[70px] w-[70px] items-center justify-center rounded-full text-3xl ${styles.badge}`}
+                >
+                  {metric.value}
+                </div>
+              )}
             </div>
-            <p className="text-gray-600 text-sm">{metric.description}</p>
+
+            <div className="flex-1">
+              <h3 className="mb-1 text-lg font-semibold text-slate-900 dark:text-white">
+                {metric.title}
+              </h3>
+              <div
+                className={`mb-2 flex items-center gap-2 text-sm font-semibold ${styles.text}`}
+              >
+                <span
+                  className={`inline-block h-2.5 w-2.5 rounded-full ${styles.dot}`}
+                ></span>
+                {metric.status}
+              </div>
+              <p className="text-sm text-slate-600 dark:text-slate-400">
+                {metric.description}
+              </p>
+            </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
     </section>
   );
 };

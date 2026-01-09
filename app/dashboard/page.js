@@ -1,6 +1,6 @@
 "use client";
-import { useMutation, useQuery } from "convex/react";
-
+import { useQuery } from "convex/react";
+import Link from "next/link";
 import { api } from "../../convex/_generated/api";
 
 function Dashboard() {
@@ -9,30 +9,49 @@ function Dashboard() {
   if (articles === undefined) return <p>Loading...</p>;
 
   return (
-    <>
-      <div className="rounded m-2 text-black dark:bg-gray-800 p-2">
-        <ul className="grid grid-cols-4 gap-2">
-          {articles.map((article) => (
-            <li key={article._id} className="bg-white shadow m-2 p-3 rounded">
-              <a className="text-blue" href={"/editor?key=" + article._id}>
-                <strong>{article.articleName}</strong>
-              </a>
-              <br />
-              <hr className="my-2" />
-              <p>
-                Article ID: <small>{article._id}</small>
-              </p>
-              <span>
-                By <small>{article.createdBy}</small>
-              </span>
-              <br />
-              {/* <p>{article.articleContent}</p> */}
-              <small>{new Date(article.creationDate).toLocaleString()}</small>
-            </li>
-          ))}
-        </ul>
+    <div className="m-4 rounded-2xl border border-slate-200/80 bg-white/70 p-4 text-slate-900 shadow-sm dark:border-slate-800/60 dark:bg-slate-900/40 dark:text-slate-100">
+      <div className="mb-4 flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-semibold text-slate-900 dark:text-white">
+            Articles
+          </h1>
+          <p className="text-sm text-slate-500 dark:text-slate-400">
+            Review, edit, and manage your content workspace.
+          </p>
+        </div>
       </div>
-    </>
+      <ul className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+        {articles.map((article) => (
+          <li
+            key={article._id}
+            className="rounded-2xl border border-slate-200 bg-white p-4 shadow-md transition hover:-translate-y-1 hover:border-slate-300 dark:border-slate-800/80 dark:bg-slate-950/70 dark:shadow-black/30 dark:hover:border-slate-700"
+          >
+            <Link
+              className="text-base font-semibold text-sky-600 transition hover:text-sky-500 dark:text-sky-300 dark:hover:text-sky-200"
+              href={`/editor?key=${article._id}`}
+            >
+              {article.articleName}
+            </Link>
+            <div className="my-3 h-px bg-slate-200 dark:bg-slate-800/80" />
+            <p className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-500">
+              Article ID
+            </p>
+            <p className="truncate text-sm text-slate-600 dark:text-slate-300">
+              {article._id}
+            </p>
+            <p className="mt-3 text-xs uppercase tracking-wide text-slate-500 dark:text-slate-500">
+              Owner
+            </p>
+            <p className="text-sm text-slate-600 dark:text-slate-300">
+              {article.createdBy}
+            </p>
+            <p className="mt-4 text-xs text-slate-500 dark:text-slate-400">
+              {new Date(article.creationDate).toLocaleString()}
+            </p>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 

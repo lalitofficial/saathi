@@ -80,9 +80,9 @@ export default function SideBar({ children }) {
   };
 
   return (
-    <div className="bg-gray-50 dark:bg-gray-900 space-y-6">
+    <div className="space-y-6 rounded-2xl border border-slate-200/80 bg-white/80 p-4 dark:border-slate-800/70 dark:bg-slate-950/80">
       {/* Meta Specifications */}
-      <section className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-md">
+      <section className="rounded-xl border border-slate-200 bg-slate-50 p-4 shadow-md dark:border-slate-800 dark:bg-slate-900/70">
         <h2 className="text-gray-900 dark:text-gray-100 text-lg font-semibold mb-4">
           Meta Specifications
         </h2>
@@ -92,7 +92,7 @@ export default function SideBar({ children }) {
               Meta Title
             </label>
             <input
-              className="rounded-md border border-gray-300 dark:border-gray-700 px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
               placeholder="Enter title..."
               value={metaTitle}
               onChange={handleMetaTitleChange}
@@ -104,7 +104,7 @@ export default function SideBar({ children }) {
             </label>
             <textarea
               rows={3}
-              className="rounded-md border border-gray-300 dark:border-gray-700 px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
               placeholder="Enter description..."
               value={metaDesc}
               onChange={handleMetaDescChange}
@@ -116,7 +116,7 @@ export default function SideBar({ children }) {
                 Canonical URL
               </label>
               <input
-                className="rounded-md border border-gray-300 dark:border-gray-700 px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
                 placeholder="https://example.com/page"
                 value={canonicalUrl}
                 onChange={(e) => setCanonicalUrl(e.target.value)}
@@ -136,7 +136,7 @@ export default function SideBar({ children }) {
       </section>
 
       {/* Page Quality */}
-      <section className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-md">
+      <section className="rounded-xl border border-slate-200 bg-slate-50 p-4 shadow-md dark:border-slate-800 dark:bg-slate-900/70">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
             Page Quality
@@ -167,7 +167,7 @@ export default function SideBar({ children }) {
       </section>
 
       {/* Page Structure */}
-      <section className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-md">
+      <section className="rounded-xl border border-slate-200 bg-slate-50 p-4 shadow-md dark:border-slate-800 dark:bg-slate-900/70">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
             Page Structure
@@ -203,7 +203,7 @@ export default function SideBar({ children }) {
       </section>
 
       {/* Link Structure */}
-      <section className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-md">
+      <section className="rounded-xl border border-slate-200 bg-slate-50 p-4 shadow-md dark:border-slate-800 dark:bg-slate-900/70">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
             Link Structure
@@ -235,7 +235,7 @@ export default function SideBar({ children }) {
       </section>
 
       {/* Server Configuration */}
-      <section className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-md">
+      <section className="rounded-xl border border-slate-200 bg-slate-50 p-4 shadow-md dark:border-slate-800 dark:bg-slate-900/70">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
             Server Configuration
@@ -267,7 +267,7 @@ export default function SideBar({ children }) {
       </section>
 
       {/* External Factors */}
-      <section className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-md">
+      <section className="rounded-xl border border-slate-200 bg-slate-50 p-4 shadow-md dark:border-slate-800 dark:bg-slate-900/70">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
             External Factors

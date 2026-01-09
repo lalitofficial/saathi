@@ -96,7 +96,7 @@ export default function RichEditor() {
   return (
     <div className="prose max-w-none dark:prose-invert">
       {/* ===== Static Toolbar (always visible) ===== */}
-      <div className="editor-toolbar sticky top-0 pt-3 bg-white z-10">
+      <div className="editor-toolbar sticky top-0 z-10 bg-white/80 pt-3 backdrop-blur dark:bg-slate-950/80">
         <button
           className={
             editor.isActive("heading", { level: 1 })
@@ -150,12 +150,12 @@ export default function RichEditor() {
           className={
             // saving immediately shows gray
             saving
-              ? "absolute right-0 px-4 py-2 bg-gray-400 text-white cursor-not-allowed rounded transition"
+              ? "absolute right-0 rounded bg-slate-400 px-4 py-2 text-white cursor-not-allowed transition dark:bg-slate-700"
               : // if not dirty, green (up-to-date)
                 !isDirty
-                ? "absolute right-0 px-4 py-2 bg-green-300 text-white rounded transition"
+                ? "absolute right-0 rounded bg-emerald-500 px-4 py-2 text-white transition dark:text-slate-900"
                 : // if dirty, red
-                  "absolute right-0 px-4 py-2 bg-red-300 hover:bg-red-500 text-white rounded transition"
+                  "absolute right-0 rounded bg-rose-500 px-4 py-2 text-white transition hover:bg-rose-400"
           }
         >
           {saving ? "Saving…" : "Save Article"}
@@ -231,12 +231,16 @@ export default function RichEditor() {
       {/* ===== The editable area ===== */}
       <EditorContent
         editor={editor}
-        className="border p-4 rounded max-w-none dark:bg-gray-800 dark:text-gray-100"
+        className="max-w-none rounded border border-slate-200 bg-white p-4 text-slate-900 dark:border-slate-800/80 dark:bg-slate-950/60 dark:text-slate-100"
       />
 
       {/* ===== HTML payload preview ===== */}
-      <h4 className="mt-6 font-semibold">HTML Payload:</h4>
-      <pre className="p-4 bg-gray-100 rounded overflow-auto">{html}</pre>
+      <h4 className="mt-6 font-semibold text-slate-700 dark:text-slate-200">
+        HTML Payload:
+      </h4>
+      <pre className="overflow-auto rounded border border-slate-200 bg-slate-50 p-4 text-slate-700 dark:border-slate-800/60 dark:bg-slate-900/60 dark:text-slate-200">
+        {html}
+      </pre>
     </div>
   );
 }
