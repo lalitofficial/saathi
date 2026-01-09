@@ -1,4 +1,3 @@
-"use client";
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -20,28 +19,20 @@ import { useUser } from "@clerk/nextjs";
 
 function NewArticleDialog({ children }) {
   const createArticle = useMutation(api.article.createArticle);
-
   const [articleName, setArticleName] = useState();
   const { user } = useUser();
-  // const [file, setFile] = useState();
   const [loading, setLoading] = useState(false);
 
-  // const OnFileSelect = (event) => {
-  //   setFile(event.target.files[0]);
-  // };
-  const OnUpload = async () => {
+  const onUpload = async () => {
     setLoading(true);
-
     const articleId = uuid4();
-    // Step 3: Save the newly allocated storage id to the database
-    const resp = await createArticle({
+    await createArticle({
       articleID: articleId,
       articleContent: "<p>Lets Start Writing</p>",
       creationDate: Date.now(),
       articleName: articleName ?? "Untitled Article",
       createdBy: user?.primaryEmailAddress?.emailAddress,
     });
-    console.log("Response ", resp);
     setLoading(false);
   };
 
@@ -74,7 +65,7 @@ function NewArticleDialog({ children }) {
                 Close
               </Button>
             </DialogClose>
-            <Button onClick={OnUpload} className="cursor-pointer">
+            <Button onClick={onUpload} className="cursor-pointer">
               {loading ? <Loader2Icon className="animate-spin" /> : "Upload"}
             </Button>
           </DialogFooter>
