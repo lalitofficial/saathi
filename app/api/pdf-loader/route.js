@@ -1,11 +1,35 @@
 import { NextResponse } from "next/server";
-import fs from "fs/promises";
-import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
-
 import { WebPDFLoader } from "@langchain/community/document_loaders/web/pdf";
 
-const pdfPath =
-  "https://cautious-gnat-501.convex.cloud/api/storage/65ac2f09-3914-4fa8-998d-cc1e49513aa4";
+const DEFAULT_PDF_URL = process.env.PDF_LOADER_URL || "";
+const FETCH_TIMEOUT_MS = 15000;
+
+function parsePdfUrl(request) {
+  const { searchParams } = new URL(request.url);
+  const url = searchParams.get("url") || DEFAULT_PDF_URL;
+  if (!url) return null;
+
+  try {
+    const parsed = new URL(url);
+    if (!["http:", "https:"].includes(parsed.protocol)) return null;
+    if (["localhost", "127.0.0.1", "0.0.0.0"].includes(parsed.hostname)) {
+      return null;
+    }
+    return parsed.toString();
+  } catch {
+    return null;
+  }
+}
+
+async function fetchWithTimeout(url) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  try {
+    return await fetch(url, { signal: controller.signal });
+  } finally {
+    clearTimeout(timeout);
+  }
+}
 function parseResume(raw) {
   // 1. split into non-empty lines
   const lines = raw
@@ -34,20 +58,34 @@ function parseResume(raw) {
 }
 
 export async function GET(request) {
-  const response = await fetch(pdfPath);
-  const data = await response.blob();
+  const pdfUrl = parsePdfUrl(request);
+  if (!pdfUrl) {
+    return NextResponse.json(
+      { success: false, error: "Missing or invalid PDF URL." },
+      { status: 400 }
+    );
+  }
 
-  const loader = new WebPDFLoader(data);
+  try {
+    const response = await fetchWithTimeout(pdfUrl);
+    if (!response.ok) {
+      return NextResponse.json(
+        { success: false, error: "Failed to fetch PDF." },
+        { status: 502 }
+      );
+    }
 
-  const docs = await loader.load();
-  const pdfTextContent = docs.map((d) => d.pageContent).join("\n");
+    const data = await response.blob();
+    const loader = new WebPDFLoader(data);
+    const docs = await loader.load();
+    const pdfTextContent = docs.map((d) => d.pageContent).join("\n");
+    const sections = parseResume(pdfTextContent);
 
-  // parse into sections
-  const sections = parseResume(pdfTextContent);
-  // pretty-print with 2-space indentation
-  const body = JSON.stringify({ sections }, null, 2);
-
-  return new NextResponse(body, {
-    headers: { "Content-Type": "application/json" },
-  });
+    return NextResponse.json({ success: true, sections });
+  } catch (error) {
+    return NextResponse.json(
+      { success: false, error: error?.message || "PDF parse failed." },
+      { status: 500 }
+    );
+  }
 }

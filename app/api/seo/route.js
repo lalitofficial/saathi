@@ -6,25 +6,80 @@ import cheerio from "cheerio";
 
 // LRU cache for HTML content to reduce network overhead
 const htmlCache = new LRU({ max: 100, ttl: 1000 * 60 * 5 }); // 5 minutes TTL
+const FETCH_TIMEOUT_MS = 15000;
+const PUPPETEER_TIMEOUT_MS = 20000;
+const BLOCKED_HOSTS = new Set(["localhost", "127.0.0.1", "0.0.0.0"]);
+const BLOCKED_HOST_SUFFIXES = [".local", ".internal"];
+const PRIVATE_HOST_PATTERNS = [
+  /^10\./,
+  /^127\./,
+  /^192\.168\./,
+  /^172\.(1[6-9]|2\d|3[0-1])\./,
+];
+
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function normalizeUrl(rawUrl) {
+  if (!rawUrl || typeof rawUrl !== "string") return null;
+  try {
+    const parsed = new URL(rawUrl);
+    if (!["http:", "https:"].includes(parsed.protocol)) return null;
+    const host = parsed.hostname;
+    if (BLOCKED_HOSTS.has(host)) return null;
+    if (BLOCKED_HOST_SUFFIXES.some((suffix) => host.endsWith(suffix))) {
+      return null;
+    }
+    if (PRIVATE_HOST_PATTERNS.some((pattern) => pattern.test(host))) {
+      return null;
+    }
+    return parsed.toString();
+  } catch {
+    return null;
+  }
+}
+
+async function fetchWithTimeout(url, options = {}) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } finally {
+    clearTimeout(timeout);
+  }
+}
 
 // Fetch HTML, with Puppeteer fallback for dynamic pages
 async function fetchHtml(url) {
   if (htmlCache.has(url)) return htmlCache.get(url);
   let html = "";
   try {
-    const res = await fetch(url);
-    if (res.headers.get("content-type")?.includes("text/html")) {
+    const res = await fetchWithTimeout(url);
+    if (
+      res.ok &&
+      res.headers.get("content-type")?.includes("text/html")
+    ) {
       html = await res.text();
     } else {
       throw new Error("Non-HTML response");
     }
   } catch {
     // Fallback: headless browser
-    const browser = await puppeteer.launch();
-    const page = await browser.newPage();
-    await page.goto(url, { waitUntil: "networkidle0" });
-    html = await page.content();
-    await browser.close();
+    const browser = await puppeteer.launch({
+      args: ["--no-sandbox", "--disable-setuid-sandbox"],
+    });
+    try {
+      const page = await browser.newPage();
+      page.setDefaultNavigationTimeout(PUPPETEER_TIMEOUT_MS);
+      await page.goto(url, {
+        waitUntil: "networkidle0",
+        timeout: PUPPETEER_TIMEOUT_MS,
+      });
+      html = await page.content();
+    } finally {
+      await browser.close();
+    }
   }
   htmlCache.set(url, html);
   return html;
@@ -42,6 +97,9 @@ const analyzers = {
     };
   },
   keywordInTitle: async ({ output, keyword }) => {
+    if (!keyword) {
+      return { passed: false, comment: "No target keyword provided" };
+    }
     const present = output.titleTag.value
       .toLowerCase()
       .includes(keyword.toLowerCase());
@@ -60,6 +118,9 @@ const analyzers = {
     };
   },
   keywordInDescription: async ({ output, keyword }) => {
+    if (!keyword) {
+      return { passed: false, comment: "No target keyword provided" };
+    }
     const present = output.metaDescriptionTag.value
       .toLowerCase()
       .includes(keyword.toLowerCase());
@@ -106,6 +167,9 @@ const analyzers = {
     return { passed: true, data: counts, comment: "Counts for H2–H6" };
   },
   keywordInH1: async ({ output, keyword }) => {
+    if (!keyword) {
+      return { passed: false, comment: "No target keyword provided" };
+    }
     const found = output.h1HeaderUsage.data.some((text) =>
       text.toLowerCase().includes(keyword.toLowerCase())
     );
@@ -115,16 +179,20 @@ const analyzers = {
     };
   },
   keywordConsistency: async ({ $, keyword }) => {
+    if (!keyword) {
+      return { passed: false, comment: "No target keyword provided" };
+    }
     const text = $("body").text().toLowerCase();
-    const count = (text.match(new RegExp(keyword.toLowerCase(), "g")) || [])
+    const safeKeyword = escapeRegExp(keyword.toLowerCase());
+    const count = (text.match(new RegExp(safeKeyword, "g")) || [])
       .length;
-    const words = text.split(/\s+/).length;
+    const words = text.split(/\s+/).filter(Boolean).length;
     const density = ((count / words) * 100).toFixed(2);
     const passed = density >= 1 && density <= 3;
     return { passed, comment: `Density: ${density}%` };
   },
   contentLength: async ({ $ }) => {
-    const words = $("body").text().trim().split(/\s+/).length;
+    const words = $("body").text().trim().split(/\s+/).filter(Boolean).length;
     return {
       passed: words >= 300,
       wordCount: words,
@@ -166,7 +234,7 @@ const analyzers = {
   sslEnabled: async ({ url }) => ({ passed: url.startsWith("https://") }),
   httpsRedirect: async ({ url }) => {
     try {
-      const res = await fetch(url.replace(/^https?:/, "http:"));
+      const res = await fetchWithTimeout(url.replace(/^https?:/, "http:"));
       return { passed: res.url.startsWith("https://") };
     } catch {
       return { passed: false };
@@ -174,7 +242,7 @@ const analyzers = {
   },
   robotsTxt: async ({ url }) => {
     try {
-      const res = await fetch(new URL("/robots.txt", url).href);
+      const res = await fetchWithTimeout(new URL("/robots.txt", url).href);
       return { passed: res.ok, path: "/robots.txt" };
     } catch {
       return { passed: false, path: "" };
@@ -198,9 +266,10 @@ export async function POST(request) {
       callback = "",
       targetKeyword = "",
     } = await request.json();
-    if (!url) throw new Error("Missing URL");
+    const normalizedUrl = normalizeUrl(url);
+    if (!normalizedUrl) throw new Error("Invalid or unsafe URL");
 
-    const html = await fetchHtml(url);
+    const html = await fetchHtml(normalizedUrl);
     const $ = cheerio.load(html);
 
     // Collect results
@@ -217,7 +286,7 @@ export async function POST(request) {
       success: true,
       data: {
         id: Date.now(),
-        input: { url, pdf, callback, targetKeyword },
+        input: { url: normalizedUrl, pdf, callback, targetKeyword },
         output,
       },
     };
