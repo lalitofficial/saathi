@@ -1,7 +1,6 @@
 "use client";
 import React, { useState, useEffect } from "react";
-import dynamic from "next/dynamic";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { useEditor, EditorContent, BubbleMenu } from "@tiptap/react";

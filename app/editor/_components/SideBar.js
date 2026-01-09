@@ -1,6 +1,4 @@
 import React, { useState } from "react";
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { AppSidebar } from "@/components/ui/app-sidebar";
 
 export default function SideBar({ children }) {
   // Meta specifications state
@@ -80,18 +78,6 @@ export default function SideBar({ children }) {
     setSocialShares(8);
     setExternalResult("✅ External factors OK");
   };
-
-  fetch("/api/seo", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      title: "Types of Coffee Drinks Explained",
-      description:
-        "Learn about lattes, espressos, and more in this beginner guide.",
-    }),
-  })
-    .then((res) => res.json())
-    .then((data) => console.log(data.comments));
 
   return (
     <div className="bg-gray-50 dark:bg-gray-900 space-y-6">

@@ -1,6 +1,9 @@
 import React from "react";
 
-const SearchPreview = () => {
+const SearchPreview = ({ headline }) => {
+  const displayHeadline =
+    headline?.trim() ||
+    "Types Of Coffee Drinks Explained: A Beginner’s Guide";
   return (
     <div className="ha-search-preview max-w-5xl mx-auto  text-[14px] h-[480px] shadow-[0_60px_193px_rgba(24,39,75,0.1)] rounded-t-[21px] overflow-hidden cursor-default">
       {/* Browser Bar */}
@@ -74,7 +77,7 @@ const SearchPreview = () => {
         {/* Search Input Field */}
         <div className="ha-search-preview-input flex items-center w-[690px] max-w-full h-[44px] bg-white border border-transparent shadow-[0_2px_5px_1px_rgba(64,60,67,0.16)] rounded-[24px] px-5 mb-[1.5rem]">
           <div className="ha-search-preview-input__text flex-1 text-[16px] whitespace-pre font-bold text-[#5f6368] overflow-hidden">
-            Types Of Coffee Drinks Explained: A Beginner’s Guide
+            {displayHeadline}
           </div>
           <div className="ha-search-preview-input__icons flex gap-3 items-center">
             {/* Close icon */}
@@ -141,7 +144,7 @@ const SearchPreview = () => {
           <span className="text-[#5f6368]">› headline-analyzer/</span>
         </div>
         <div className="ha-search-preview-results__phrase text-[#1a0dab] text-[20px] whitespace-nowrap overflow-hidden text-ellipsis max-w-[600px] mb-[10px]">
-          Types Of Coffee Drinks Explained: A Beginner’s Guide
+          {displayHeadline}
         </div>
         <div className="ha-search-preview-results__description text-[18px] text-[#4d5156] max-w-[600px]">
           Here is how your headline will look like in google search results

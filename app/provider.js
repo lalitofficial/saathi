@@ -2,10 +2,14 @@
 import React from "react";
 import { ConvexProvider, ConvexReactClient } from "convex/react";
 
-function Provider({ children }) {
-  const convex = new ConvexReactClient(process.env.NEXT_PUBLIC_CONVEX_URL);
+const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL;
+if (!convexUrl) {
+  throw new Error("NEXT_PUBLIC_CONVEX_URL is not set.");
+}
+const convexClient = new ConvexReactClient(convexUrl);
 
-  return <ConvexProvider client={convex}>{children}</ConvexProvider>;
+function Provider({ children }) {
+  return <ConvexProvider client={convexClient}>{children}</ConvexProvider>;
 }
 
 export default Provider;
