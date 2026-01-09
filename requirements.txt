@@ -1,0 +1,2 @@
+# Python dependencies for Saathi.
+# This project is Node.js-based; there are no Python packages required.
