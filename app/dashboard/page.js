@@ -59,6 +59,13 @@ const renameFolderInTree = (nodes, targetId, nextName) => {
   });
 };
 
+const extractTags = (content = "") => {
+  const matches = content.match(/#[a-z0-9_-]+/gi) || [];
+  return Array.from(
+    new Set(matches.map((tag) => tag.replace(/^#/, "").toLowerCase()))
+  );
+};
+
 const findNodeById = (nodes, targetId) => {
   for (const node of nodes) {
     if (node.id === targetId) {
@@ -162,6 +169,11 @@ function Dashboard() {
   const [historyIndex, setHistoryIndex] = useState(0);
   const [folderInput, setFolderInput] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [statusFilters, setStatusFilters] = useState([]);
+  const [tagFilters, setTagFilters] = useState([]);
+  const [savedViews, setSavedViews] = useState([]);
+  const [activeViewId, setActiveViewId] = useState("");
   const [sortKey, setSortKey] = useState("newest");
   const [viewMode, setViewMode] = useState("list");
   const [showNewFolder, setShowNewFolder] = useState(false);
@@ -193,6 +205,35 @@ function Dashboard() {
   }, []);
 
   useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchTerm);
+    }, 200);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const stored = window.localStorage.getItem("saathiSavedViews");
+    if (!stored) return;
+    try {
+      const parsed = JSON.parse(stored);
+      if (Array.isArray(parsed)) {
+        setSavedViews(parsed);
+      }
+    } catch (error) {
+      console.warn("Failed to load saved views", error);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(
+      "saathiSavedViews",
+      JSON.stringify(savedViews)
+    );
+  }, [savedViews]);
+
+  useEffect(() => {
     const closeMenu = () => setContextMenu(null);
     window.addEventListener("click", closeMenu);
     window.addEventListener("scroll", closeMenu, true);
@@ -214,7 +255,7 @@ function Dashboard() {
   );
   const currentFolder = currentNode?.name || ROOT_LABEL;
   const currentChildren = currentNode?.children || folderTree;
-  const normalizedSearch = searchTerm.trim().toLowerCase();
+  const normalizedSearch = debouncedSearch.trim().toLowerCase();
   const canGoBack = historyIndex > 0;
   const canGoForward = historyIndex < historyStack.length - 1;
 
@@ -224,6 +265,25 @@ function Dashboard() {
       node.name.toLowerCase().includes(normalizedSearch)
     );
   }, [currentChildren, normalizedSearch]);
+
+  const articleTags = useMemo(() => {
+    const map = new Map();
+    articles.forEach((article) => {
+      const tags = extractTags(article.articleContent || "");
+      if (tags.length) {
+        map.set(article.id, tags);
+      }
+    });
+    return map;
+  }, [articles]);
+
+  const availableTags = useMemo(() => {
+    const tagSet = new Set();
+    articleTags.forEach((tags) => {
+      tags.forEach((tag) => tagSet.add(tag));
+    });
+    return Array.from(tagSet).sort();
+  }, [articleTags]);
 
   const folderStats = useMemo(() => {
     const stats = new Map();
@@ -366,11 +426,25 @@ function Dashboard() {
   }, [articles, articleLocations, currentFolder, currentPathKey, isRoot]);
 
   const filteredArticles = useMemo(() => {
-    if (!normalizedSearch) return rowArticles;
-    return rowArticles.filter((article) =>
-      article.articleName?.toLowerCase().includes(normalizedSearch)
-    );
-  }, [normalizedSearch, rowArticles]);
+    let items = rowArticles;
+    if (normalizedSearch) {
+      items = items.filter((article) =>
+        article.articleName?.toLowerCase().includes(normalizedSearch)
+      );
+    }
+    if (statusFilters.length) {
+      items = items.filter((article) =>
+        statusFilters.includes(getStatusForArticle(article))
+      );
+    }
+    if (tagFilters.length) {
+      items = items.filter((article) => {
+        const tags = articleTags.get(article.id) || [];
+        return tags.some((tag) => tagFilters.includes(tag));
+      });
+    }
+    return items;
+  }, [articleTags, normalizedSearch, rowArticles, statusFilters, tagFilters]);
 
   const tableRows = useMemo(() => {
     const folderRows = visibleFolders
@@ -587,6 +661,56 @@ function Dashboard() {
       setSelectedIds(tableRowIds);
       setLastSelectedIndex(tableRowIds.length - 1);
     }
+  };
+
+  const toggleStatusFilter = (status) => {
+    setStatusFilters((prev) =>
+      prev.includes(status)
+        ? prev.filter((value) => value !== status)
+        : [...prev, status]
+    );
+  };
+
+  const toggleTagFilter = (tag) => {
+    setTagFilters((prev) =>
+      prev.includes(tag)
+        ? prev.filter((value) => value !== tag)
+        : [...prev, tag]
+    );
+  };
+
+  const handleClearFilters = () => {
+    setStatusFilters([]);
+    setTagFilters([]);
+    setSearchTerm("");
+  };
+
+  const handleSaveView = () => {
+    const name = window.prompt("Saved view name");
+    if (!name?.trim()) return;
+    const view = {
+      id: `${Date.now()}`,
+      name: name.trim(),
+      path: pathStack,
+      search: searchTerm,
+      statusFilters,
+      tagFilters,
+      viewMode,
+    };
+    setSavedViews((prev) => [...prev, view]);
+    setActiveViewId(view.id);
+  };
+
+  const handleApplyView = (id) => {
+    if (!id) return;
+    const view = savedViews.find((item) => item.id === id);
+    if (!view) return;
+    setActiveViewId(id);
+    setSearchTerm(view.search || "");
+    setStatusFilters(view.statusFilters || []);
+    setTagFilters(view.tagFilters || []);
+    setViewMode(view.viewMode || "list");
+    navigateToPath(view.path || []);
   };
 
   const openContextMenu = (event, payload) => {
@@ -919,9 +1043,9 @@ function Dashboard() {
                 onClick={() => setShowNewFolder((prev) => !prev)}
                 className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-semibold text-white transition hover:border-slate-200"
               >
-                <Plus size={14} />
-                New Folder
-              </button>
+                  <Plus size={14} />
+                  New Folder
+                </button>
               <div className="flex items-center gap-1 rounded-lg border border-white/10 p-1 text-[11px] font-semibold text-slate-300">
                 {["list", "grid", "kanban"].map((mode) => (
                   <button
@@ -937,6 +1061,78 @@ function Dashboard() {
                   </button>
                 ))}
               </div>
+            </div>
+
+            <div className="mb-2 flex flex-wrap items-center gap-2 text-[11px] text-slate-400">
+              <span className="text-[10px] uppercase tracking-[0.2em] text-slate-500">
+                Filters
+              </span>
+              {STATUS_PIPELINE.map((status) => (
+                <button
+                  key={status}
+                  onClick={() => toggleStatusFilter(status)}
+                  className={`rounded-full border px-2 py-1 text-[11px] transition ${
+                    statusFilters.includes(status)
+                      ? "border-sky-500 bg-sky-500/10 text-white"
+                      : "border-white/10 text-slate-400 hover:border-white/30"
+                  }`}
+                >
+                  {status}
+                </button>
+              ))}
+              {availableTags.length > 0 && (
+                <>
+                  <span className="text-[10px] uppercase tracking-[0.2em] text-slate-500">
+                    Tags
+                  </span>
+                  {availableTags.map((tag) => (
+                    <button
+                      key={tag}
+                      onClick={() => toggleTagFilter(tag)}
+                      className={`rounded-full border px-2 py-1 text-[11px] transition ${
+                        tagFilters.includes(tag)
+                          ? "border-emerald-400 bg-emerald-400/10 text-white"
+                          : "border-white/10 text-slate-400 hover:border-white/30"
+                      }`}
+                    >
+                      #{tag}
+                    </button>
+                  ))}
+                </>
+              )}
+              {(statusFilters.length > 0 ||
+                tagFilters.length > 0 ||
+                searchTerm) && (
+                <button
+                  onClick={handleClearFilters}
+                  className="ml-auto rounded-full border border-white/10 px-2 py-1 text-[11px] text-slate-300 hover:border-white/30"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+
+            <div className="mb-3 flex flex-wrap items-center gap-2 text-xs text-slate-300">
+              <button
+                onClick={handleSaveView}
+                className="rounded-lg border border-white/10 px-2 py-1 text-[11px] font-semibold text-slate-200 hover:border-white/40"
+              >
+                Save View
+              </button>
+              {savedViews.length > 0 && (
+                <select
+                  value={activeViewId}
+                  onChange={(event) => handleApplyView(event.target.value)}
+                  className="rounded-lg border border-white/10 bg-slate-950/50 px-2 py-1 text-[11px] text-slate-200"
+                >
+                  <option value="">Saved views</option>
+                  {savedViews.map((view) => (
+                    <option key={view.id} value={view.id}>
+                      {view.name}
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
 
             {showNewFolder && (
