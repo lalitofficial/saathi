@@ -1,32 +1,16 @@
 "use client";
 import { Button } from "@/components/ui/button";
-import { UserButton, useUser } from "@clerk/nextjs";
-import { useEffect } from "react";
 import Link from "next/link";
 export default function Home() {
-  const { user } = useUser();
-  const checkUser = async () => {
-    await fetch("/api/users", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        email: user?.primaryEmailAddress?.emailAddress,
-        imageUrl: user?.imageUrl,
-        userName: user?.fullName,
-      }),
-    });
-  };
-
-  useEffect(() => {
-    if (user) checkUser();
-  }, [user]);
   return (
     <div className="mx-auto flex min-h-[70vh] max-w-5xl flex-col items-start justify-center gap-8 px-6 py-12">
       <div className="flex w-full items-center justify-between">
         <div className="text-xs font-semibold uppercase tracking-[0.4em] text-slate-500 dark:text-slate-400">
           Saathi
         </div>
-        <UserButton />
+        <span className="rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:border-slate-700 dark:text-slate-300">
+          Guest
+        </span>
       </div>
       <div className="space-y-4">
         <h1 className="text-4xl font-semibold text-slate-900 dark:text-white md:text-5xl">

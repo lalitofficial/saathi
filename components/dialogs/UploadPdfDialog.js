@@ -14,11 +14,8 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Loader2Icon } from "lucide-react";
-import { useUser } from "@clerk/nextjs";
-
 function UploadPdfDialog({ children }) {
   const [fileName, setFileName] = useState();
-  const { user } = useUser();
   const [file, setFile] = useState();
   const [loading, setLoading] = useState(false);
 
@@ -37,10 +34,7 @@ function UploadPdfDialog({ children }) {
     const formData = new FormData();
     formData.append("file", file);
     formData.append("fileName", fileName ?? "Untitled File");
-    formData.append(
-      "createdBy",
-      user?.primaryEmailAddress?.emailAddress ?? ""
-    );
+    formData.append("createdBy", "");
 
     await fetch("/api/files", {
       method: "POST",

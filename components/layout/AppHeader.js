@@ -1,6 +1,5 @@
 "use client";
 
-import { UserButton } from "@clerk/nextjs";
 import { Moon, Sun } from "lucide-react";
 import React, { useEffect, useState } from "react";
 
@@ -37,7 +36,9 @@ export default function AppHeader() {
             {theme === "dark" ? <Sun size={14} /> : <Moon size={14} />}
             {theme === "dark" ? "Light" : "Dark"}
           </button>
-          <UserButton />
+          <span className="rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:border-slate-700 dark:text-slate-300">
+            Guest
+          </span>
         </div>
       </div>
     </header>

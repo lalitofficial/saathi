@@ -14,11 +14,8 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Loader2Icon } from "lucide-react";
-import { useUser } from "@clerk/nextjs";
-
 function NewArticleDialog({ children }) {
   const [articleName, setArticleName] = useState();
-  const { user } = useUser();
   const [loading, setLoading] = useState(false);
 
   const onUpload = async () => {
@@ -29,7 +26,7 @@ function NewArticleDialog({ children }) {
       body: JSON.stringify({
         articleName: articleName ?? "Untitled Article",
         articleContent: "<p>Lets Start Writing</p>",
-        createdBy: user?.primaryEmailAddress?.emailAddress,
+        createdBy: null,
       }),
     });
     setLoading(false);

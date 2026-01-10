@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { UserButton } from "@clerk/nextjs";
 
 export default function Header() {
   // 1. Default to light; we'll read the real value on mount
@@ -70,7 +69,9 @@ export default function Header() {
                 </svg>
               )}
             </button>
-            <UserButton />
+            <span className="rounded-full border border-gray-200 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:border-gray-700 dark:text-gray-300">
+              Guest
+            </span>
           </div>
         </div>
       </div>
