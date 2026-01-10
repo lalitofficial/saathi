@@ -6,10 +6,12 @@ import {
   ChevronRight,
   Eye,
   FileText,
+  FilePlus,
   Folder,
   Plus,
   Search,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 const ROOT_LABEL = "Saathi Explorer";
 const INITIAL_TREE = [
@@ -75,6 +77,7 @@ const addFolderToPath = (nodes, pathIds, newNode) => {
 };
 
 function Dashboard() {
+  const router = useRouter();
   const [articles, setArticles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [folderTree, setFolderTree] = useState(INITIAL_TREE);
@@ -161,6 +164,31 @@ function Dashboard() {
 
   const handleFolderDoubleClick = (folderId) => {
     navigateToPath([...pathStack, folderId]);
+  };
+
+  const handleNewArticle = async () => {
+    const title = `Untitled Article ${new Date().toLocaleTimeString("en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
+    })}`;
+    try {
+      const response = await fetch("/api/articles", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          articleName: title,
+          articleContent: "",
+          createdBy: "guest",
+        }),
+      });
+      const payload = await response.json();
+      if (response.ok && payload?.data) {
+        setArticles((prev) => [payload.data, ...prev]);
+        router.push(`/editor?key=${payload.data.id}`);
+      }
+    } catch (error) {
+      console.error("Failed to create article", error);
+    }
   };
 
   const handleBackToRoot = () => {
@@ -427,6 +455,13 @@ function Dashboard() {
                 • {sortLabel}
               </div>
               <button
+                onClick={handleNewArticle}
+                className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-semibold text-white transition hover:border-slate-200"
+              >
+                <FilePlus size={14} />
+                New Article
+              </button>
+              <button
                 onClick={() => setShowNewFolder((prev) => !prev)}
                 className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-semibold text-white transition hover:border-slate-200"
               >
@@ -474,9 +509,13 @@ function Dashboard() {
                     <div
                       key={row.id}
                       onClick={() => setSelectedId(row.id)}
-                      onDoubleClick={() =>
-                        row.kind === "folder" && navigateToPath(row.path)
-                      }
+                      onDoubleClick={() => {
+                        if (row.kind === "folder") {
+                          navigateToPath(row.path);
+                        } else {
+                          router.push(`/editor?key=${row.id}`);
+                        }
+                      }}
                       className={`grid grid-cols-[0.35fr_2fr_0.8fr_0.8fr_0.8fr_0.8fr_0.5fr] items-center gap-2 px-3 py-2 text-xs text-slate-100 transition hover:bg-white/5 ${
                         isSelected ? "bg-white/5" : ""
                       }`}
