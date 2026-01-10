@@ -59,6 +59,19 @@ const renameFolderInTree = (nodes, targetId, nextName) => {
   });
 };
 
+const findNodeById = (nodes, targetId) => {
+  for (const node of nodes) {
+    if (node.id === targetId) {
+      return node;
+    }
+    const childMatch = findNodeById(node.children || [], targetId);
+    if (childMatch) {
+      return childMatch;
+    }
+  }
+  return null;
+};
+
 const getArticleStatus = (article) => {
   const contentLength = article.articleContent?.trim().length ?? 0;
   return contentLength < 80 ? "Draft" : "Active";
@@ -407,6 +420,39 @@ function Dashboard() {
     return [...folderRows, ...articleRows];
   }, [filteredArticles, folderStats, pathStack, sortKey, visibleFolders]);
 
+  const selectedRow = useMemo(() => {
+    if (!selectedIds.length) return null;
+    return tableRows.find((row) => row.id === selectedIds[0]) || null;
+  }, [selectedIds, tableRows]);
+
+  const selectedArticle = useMemo(() => {
+    if (!selectedRow || selectedRow.kind !== "file") return null;
+    return articles.find((article) => article.id === selectedRow.id);
+  }, [articles, selectedRow]);
+
+  const selectedFolderNode = useMemo(() => {
+    if (selectedRow?.kind === "folder") {
+      return findNodeById(folderTree, selectedRow.id);
+    }
+    if (selectedNodeId === "root") {
+      return { id: "root", name: ROOT_LABEL, children: folderTree };
+    }
+    if (selectedNodeId) {
+      return findNodeById(folderTree, selectedNodeId);
+    }
+    return null;
+  }, [folderTree, selectedNodeId, selectedRow]);
+
+  const selectedFolderStats = useMemo(() => {
+    if (!selectedFolderNode || selectedFolderNode.id === "root") return null;
+    return folderStats.get(selectedFolderNode.id);
+  }, [folderStats, selectedFolderNode]);
+
+  const totalFolderCount = useMemo(
+    () => flattenFolders(folderTree).length,
+    [folderTree]
+  );
+
   const sortLabel = useMemo(() => {
     if (sortKey === "alphabetical") return "A - Z";
     return "Newest";
@@ -516,6 +562,7 @@ function Dashboard() {
       return [row.id];
     });
     setLastSelectedIndex(index);
+    setSelectedNodeId(null);
   };
 
   const handleToggleRow = (event, row, index) => {
@@ -527,6 +574,7 @@ function Dashboard() {
       return [...prev, row.id];
     });
     setLastSelectedIndex(index);
+    setSelectedNodeId(null);
   };
 
   const handleToggleAll = (event) => {
@@ -554,6 +602,7 @@ function Dashboard() {
       payload.source !== "tree"
     ) {
       setSelectedIds([payload.id]);
+      setSelectedNodeId(null);
     }
     if (payload.source === "tree") {
       setSelectedNodeId(payload.id);
@@ -725,7 +774,10 @@ function Dashboard() {
             </button>
             <button
               type="button"
-              onClick={() => setSelectedNodeId(node.id)}
+              onClick={() => {
+                setSelectedNodeId(node.id);
+                setSelectedIds([]);
+              }}
               onDoubleClick={() => navigateToPath(nodePath)}
               className="flex flex-1 items-center gap-2 text-left"
             >
@@ -752,7 +804,7 @@ function Dashboard() {
   return (
     <div className="min-h-screen bg-slate-950 px-3 py-6 text-slate-200">
       <div className="mx-auto w-full max-w-6xl">
-        <div className="grid gap-3 lg:grid-cols-[220px_minmax(0,1fr)]">
+        <div className="grid gap-3 lg:grid-cols-[220px_minmax(0,1fr)_240px]">
           <aside className="rounded-lg border border-white/10 bg-slate-950/50 p-3">
             <div className="mb-2 flex items-center justify-between">
               <p className="text-[11px] font-semibold text-slate-400">
@@ -768,7 +820,10 @@ function Dashboard() {
             <button
               type="button"
               onDoubleClick={() => navigateToPath([])}
-              onClick={() => setSelectedNodeId("root")}
+              onClick={() => {
+                setSelectedNodeId("root");
+                setSelectedIds([]);
+              }}
               className={`mb-2 flex w-full items-center gap-2 rounded-md px-2 py-1 text-xs ${
                 isRoot || selectedNodeId === "root"
                   ? "bg-white/10 text-white"
@@ -1020,6 +1075,10 @@ function Dashboard() {
                 {tableRows.map((row) => (
                   <div
                     key={row.id}
+                    onClick={() => {
+                      setSelectedIds([row.id]);
+                      setSelectedNodeId(null);
+                    }}
                     onDoubleClick={() => {
                       if (row.kind === "folder") {
                         navigateToPath(row.path);
@@ -1087,6 +1146,10 @@ function Dashboard() {
                         <div
                           key={article.id}
                           draggable
+                          onClick={() => {
+                            setSelectedIds([article.id]);
+                            setSelectedNodeId(null);
+                          }}
                           onDragStart={(event) =>
                             handleStatusDragStart(event, article.id)
                           }
@@ -1134,6 +1197,101 @@ function Dashboard() {
               </div>
             )}
           </main>
+
+          <aside className="rounded-lg border border-white/10 bg-slate-950/50 p-3 text-xs text-slate-300">
+            <p className="text-[11px] font-semibold text-slate-400">
+              Details
+            </p>
+            {selectedArticle ? (
+              <div className="mt-3 space-y-2">
+                <div>
+                  <p className="text-[11px] text-slate-500">Title</p>
+                  <p className="text-sm font-semibold text-white">
+                    {selectedArticle.articleName}
+                  </p>
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-[11px] text-slate-400">
+                  <div>
+                    <p>Status</p>
+                    <p className="text-white">
+                      {getStatusForArticle(selectedArticle)}
+                    </p>
+                  </div>
+                  <div>
+                    <p>Word count</p>
+                    <p className="text-white">
+                      {selectedArticle.articleContent
+                        ? selectedArticle.articleContent
+                            .trim()
+                            .split(/\s+/)
+                            .filter(Boolean).length
+                        : 0}
+                    </p>
+                  </div>
+                  <div>
+                    <p>Updated</p>
+                    <p className="text-white">
+                      {formatDate(
+                        selectedArticle.updatedAt ||
+                          selectedArticle.creationDate
+                      )}
+                    </p>
+                  </div>
+                  <div>
+                    <p>Author</p>
+                    <p className="text-white">
+                      {selectedArticle.createdBy || "guest"}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ) : selectedFolderNode ? (
+              <div className="mt-3 space-y-2">
+                <div>
+                  <p className="text-[11px] text-slate-500">Folder</p>
+                  <p className="text-sm font-semibold text-white">
+                    {selectedFolderNode.name}
+                  </p>
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-[11px] text-slate-400">
+                  <div>
+                    <p>Items</p>
+                    <p className="text-white">
+                      {selectedFolderNode.id === "root"
+                        ? articles.length
+                        : selectedFolderStats?.count ?? 0}
+                    </p>
+                  </div>
+                  <div>
+                    <p>Subfolders</p>
+                    <p className="text-white">
+                      {selectedFolderNode.children?.length ?? 0}
+                    </p>
+                  </div>
+                  <div>
+                    <p>Updated</p>
+                    <p className="text-white">
+                      {selectedFolderNode.id === "root"
+                        ? formatDate(new Date())
+                        : selectedFolderStats?.updated ?? "—"}
+                    </p>
+                  </div>
+                  <div>
+                    <p>Size</p>
+                    <p className="text-white">
+                      {selectedFolderNode.id === "root"
+                        ? `${totalFolderCount} folders`
+                        : selectedFolderStats?.size ?? "—"}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <p className="mt-3 text-[11px] text-slate-500">
+                Select an article or folder to see details.
+              </p>
+            )}
+          </aside>
         </div>
       </div>
     </div>
