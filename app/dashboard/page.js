@@ -86,6 +86,15 @@ const MENU_OPTIONS = {
   ],
 };
 
+const STATUS_PIPELINE = [
+  "Idea",
+  "Outline",
+  "Draft",
+  "Editing",
+  "Ready",
+  "Published",
+];
+
 const flattenFolders = (nodes, parentPath = []) => {
   return nodes.flatMap((node) => {
     const entry = {
@@ -141,8 +150,10 @@ function Dashboard() {
   const [folderInput, setFolderInput] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [sortKey, setSortKey] = useState("newest");
+  const [viewMode, setViewMode] = useState("list");
   const [showNewFolder, setShowNewFolder] = useState(false);
   const [articleLocations, setArticleLocations] = useState({});
+  const [articleStatuses, setArticleStatuses] = useState({});
   const [selectedIds, setSelectedIds] = useState([]);
   const [selectedNodeId, setSelectedNodeId] = useState(null);
   const [lastSelectedIndex, setLastSelectedIndex] = useState(null);
@@ -389,7 +400,7 @@ function Dashboard() {
               )} KB`
             : "—",
         updated: formatDate(article.updatedAt || article.creationDate),
-        status: getArticleStatus(article),
+        status: getStatusForArticle(article),
         kind: "file",
       }));
 
@@ -400,6 +411,51 @@ function Dashboard() {
     if (sortKey === "alphabetical") return "A - Z";
     return "Newest";
   }, [sortKey]);
+
+  const getStatusForArticle = (article) => {
+    if (articleStatuses[article.id]) {
+      return articleStatuses[article.id];
+    }
+    return getArticleStatus(article) === "Draft" ? "Draft" : "Ready";
+  };
+
+  const kanbanColumns = useMemo(() => {
+    const map = new Map();
+    STATUS_PIPELINE.forEach((status) => map.set(status, []));
+    filteredArticles.forEach((article) => {
+      const status = getStatusForArticle(article);
+      if (!map.has(status)) {
+        map.set(status, []);
+      }
+      map.get(status).push(article);
+    });
+    return STATUS_PIPELINE.map((status) => ({
+      status,
+      items: map.get(status) || [],
+    }));
+  }, [filteredArticles, articleStatuses]);
+
+  const handleStatusDragStart = (event, articleId) => {
+    event.dataTransfer.setData(
+      "application/x-saathi-status",
+      articleId
+    );
+    event.dataTransfer.effectAllowed = "move";
+  };
+
+  const handleStatusDrop = (event, status) => {
+    event.preventDefault();
+    const id = event.dataTransfer.getData(
+      "application/x-saathi-status"
+    );
+    if (!id) return;
+    setArticleStatuses((prev) => ({ ...prev, [id]: status }));
+  };
+
+  const handleStatusDragOver = (event) => {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+  };
 
   const tableRowIds = useMemo(
     () => tableRows.map((row) => row.id),
@@ -811,6 +867,21 @@ function Dashboard() {
                 <Plus size={14} />
                 New Folder
               </button>
+              <div className="flex items-center gap-1 rounded-lg border border-white/10 p-1 text-[11px] font-semibold text-slate-300">
+                {["list", "grid", "kanban"].map((mode) => (
+                  <button
+                    key={mode}
+                    onClick={() => setViewMode(mode)}
+                    className={`rounded-md px-2 py-1 capitalize transition ${
+                      viewMode === mode
+                        ? "bg-white/10 text-white"
+                        : "text-slate-400 hover:text-white"
+                    }`}
+                  >
+                    {mode}
+                  </button>
+                ))}
+              </div>
             </div>
 
             {showNewFolder && (
@@ -830,116 +901,218 @@ function Dashboard() {
               </div>
             )}
 
-            <div
-              onContextMenu={(event) =>
-                openContextMenu(event, { kind: "empty" })
-              }
-              className="overflow-hidden rounded-2xl border border-white/10 bg-slate-950/40"
-            >
-              <div className="grid grid-cols-[0.35fr_2fr_0.8fr_0.8fr_0.8fr_0.8fr_0.5fr] gap-2 border-b border-white/10 px-3 py-1.5 text-[10px] font-semibold tracking-tight text-slate-400">
-                <span className="flex items-center">
-                  <input
-                    type="checkbox"
-                    checked={
-                      tableRowIds.length > 0 &&
-                      selectedIds.length === tableRowIds.length
-                    }
-                    onChange={handleToggleAll}
-                    className="h-3 w-3 rounded border-white/30 bg-slate-900"
-                  />
-                </span>
-                <span>Name</span>
-                <span>File Type</span>
-                <span>File Size</span>
-                <span>Last Modification</span>
-                <span>Status</span>
-                <span>Action</span>
-              </div>
-              <div className="divide-y divide-white/5">
-                {tableRows.map((row, index) => {
-                  const isSelected = selectedIds.includes(row.id);
-                  const isDragTarget =
-                    row.kind === "folder" && dragOverId === row.id;
-                  return (
-                    <div
-                      key={row.id}
-                      onClick={(event) =>
-                        handleRowSelect(event, row, index)
+            {viewMode === "list" && (
+              <div
+                onContextMenu={(event) =>
+                  openContextMenu(event, { kind: "empty" })
+                }
+                className="overflow-hidden rounded-2xl border border-white/10 bg-slate-950/40"
+              >
+                <div className="grid grid-cols-[0.35fr_2fr_0.8fr_0.8fr_0.8fr_0.8fr_0.5fr] gap-2 border-b border-white/10 px-3 py-1.5 text-[10px] font-semibold tracking-tight text-slate-400">
+                  <span className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={
+                        tableRowIds.length > 0 &&
+                        selectedIds.length === tableRowIds.length
                       }
-                      onContextMenu={(event) =>
-                        openContextMenu(event, {
-                          kind: row.kind,
-                          id: row.id,
-                          name: row.name,
-                          path: row.path,
-                          index,
-                        })
-                      }
-                      onDoubleClick={() => {
-                        if (row.kind === "folder") {
-                          navigateToPath(row.path);
-                        } else {
-                          router.push(`/editor?key=${row.id}`);
+                      onChange={handleToggleAll}
+                      className="h-3 w-3 rounded border-white/30 bg-slate-900"
+                    />
+                  </span>
+                  <span>Name</span>
+                  <span>File Type</span>
+                  <span>File Size</span>
+                  <span>Last Modification</span>
+                  <span>Status</span>
+                  <span>Action</span>
+                </div>
+                <div className="divide-y divide-white/5">
+                  {tableRows.map((row, index) => {
+                    const isSelected = selectedIds.includes(row.id);
+                    const isDragTarget =
+                      row.kind === "folder" && dragOverId === row.id;
+                    return (
+                      <div
+                        key={row.id}
+                        onClick={(event) =>
+                          handleRowSelect(event, row, index)
                         }
-                      }}
-                      draggable={row.kind === "file"}
-                      onDragStart={(event) => handleDragStart(event, row)}
-                      onDragEnd={() => setDragOverId(null)}
-                      onDragOver={(event) =>
-                        row.kind === "folder" &&
-                        handleDragOverFolder(event, row.id)
-                      }
-                      onDragLeave={() =>
-                        row.kind === "folder" && handleDragLeaveFolder(row.id)
-                      }
-                      onDrop={(event) =>
-                        row.kind === "folder" &&
-                        handleDropOnFolder(event, row.path, row.id)
-                      }
-                      className={`grid grid-cols-[0.35fr_2fr_0.8fr_0.8fr_0.8fr_0.8fr_0.5fr] items-center gap-2 px-3 py-2 text-xs text-slate-100 transition hover:bg-white/5 ${
-                        isSelected ? "bg-white/5" : ""
-                      } ${isDragTarget ? "bg-sky-500/10" : ""}`}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={selectedIds.includes(row.id)}
-                        onChange={(event) =>
-                          handleToggleRow(event, row, index)
+                        onContextMenu={(event) =>
+                          openContextMenu(event, {
+                            kind: row.kind,
+                            id: row.id,
+                            name: row.name,
+                            path: row.path,
+                            index,
+                          })
                         }
-                        className="h-3 w-3 rounded border-white/30 bg-slate-900"
-                      />
-                      <div className="flex items-center gap-2">
-                        {row.kind === "folder" ? (
-                          <Folder className="text-amber-400" size={16} />
-                        ) : (
-                          <FileText className="text-sky-400" size={16} />
-                        )}
-                        <span className="font-semibold text-white">
-                          {row.name}
+                        onDoubleClick={() => {
+                          if (row.kind === "folder") {
+                            navigateToPath(row.path);
+                          } else {
+                            router.push(`/editor?key=${row.id}`);
+                          }
+                        }}
+                        draggable={row.kind === "file"}
+                        onDragStart={(event) => handleDragStart(event, row)}
+                        onDragEnd={() => setDragOverId(null)}
+                        onDragOver={(event) =>
+                          row.kind === "folder" &&
+                          handleDragOverFolder(event, row.id)
+                        }
+                        onDragLeave={() =>
+                          row.kind === "folder" &&
+                          handleDragLeaveFolder(row.id)
+                        }
+                        onDrop={(event) =>
+                          row.kind === "folder" &&
+                          handleDropOnFolder(event, row.path, row.id)
+                        }
+                        className={`grid grid-cols-[0.35fr_2fr_0.8fr_0.8fr_0.8fr_0.8fr_0.5fr] items-center gap-2 px-3 py-2 text-xs text-slate-100 transition hover:bg-white/5 ${
+                          isSelected ? "bg-white/5" : ""
+                        } ${isDragTarget ? "bg-sky-500/10" : ""}`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.includes(row.id)}
+                          onChange={(event) =>
+                            handleToggleRow(event, row, index)
+                          }
+                          className="h-3 w-3 rounded border-white/30 bg-slate-900"
+                        />
+                        <div className="flex items-center gap-2">
+                          {row.kind === "folder" ? (
+                            <Folder className="text-amber-400" size={16} />
+                          ) : (
+                            <FileText className="text-sky-400" size={16} />
+                          )}
+                          <span className="font-semibold text-white">
+                            {row.name}
+                          </span>
+                        </div>
+                        <span className="text-slate-400">{row.type}</span>
+                        <span className="text-slate-400">{row.size}</span>
+                        <span className="text-slate-400">{row.updated}</span>
+                        <span>
+                          <span className="rounded-full bg-slate-800 px-2 py-0.5 text-[11px] uppercase tracking-[0.2em] text-slate-400">
+                            {row.status}
+                          </span>
                         </span>
+                        <button className="flex items-center justify-center rounded-md border border-white/10 px-2 py-1 text-[11px] font-semibold text-white transition hover:border-slate-200">
+                          <Eye size={12} />
+                          View
+                        </button>
                       </div>
-                      <span className="text-slate-400">{row.type}</span>
-                      <span className="text-slate-400">{row.size}</span>
-                      <span className="text-slate-400">{row.updated}</span>
-                      <span>
-                        <span className="rounded-full bg-slate-800 px-2 py-0.5 text-[11px] uppercase tracking-[0.2em] text-slate-400">
-                          {row.status}
-                        </span>
-                      </span>
-                      <button className="flex items-center justify-center rounded-md border border-white/10 px-2 py-1 text-[11px] font-semibold text-white transition hover:border-slate-200">
-                        <Eye size={12} />
-                        View
-                      </button>
+                    );
+                  })}
+                  {tableRows.length === 0 && (
+                    <div className="px-3 py-5 text-center text-xs text-slate-400">
+                      No files in this folder yet.
                     </div>
-                  );
-                })}
+                  )}
+                </div>
+              </div>
+            )}
+
+            {viewMode === "grid" && (
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {tableRows.map((row) => (
+                  <div
+                    key={row.id}
+                    onDoubleClick={() => {
+                      if (row.kind === "folder") {
+                        navigateToPath(row.path);
+                      } else {
+                        router.push(`/editor?key=${row.id}`);
+                      }
+                    }}
+                    onContextMenu={(event) =>
+                      openContextMenu(event, {
+                        kind: row.kind,
+                        id: row.id,
+                        name: row.name,
+                        path: row.path,
+                      })
+                    }
+                    className="rounded-xl border border-white/10 bg-slate-950/40 p-3 text-xs text-slate-200 transition hover:border-white/30"
+                  >
+                    <div className="flex items-center gap-2">
+                      {row.kind === "folder" ? (
+                        <Folder className="text-amber-400" size={16} />
+                      ) : (
+                        <FileText className="text-sky-400" size={16} />
+                      )}
+                      <span className="font-semibold text-white">
+                        {row.name}
+                      </span>
+                    </div>
+                    <div className="mt-2 flex items-center justify-between text-[11px] text-slate-400">
+                      <span>{row.type}</span>
+                      <span>{row.size}</span>
+                    </div>
+                    <div className="mt-2 flex items-center justify-between text-[11px] text-slate-400">
+                      <span>{row.updated}</span>
+                      <span>{row.status}</span>
+                    </div>
+                  </div>
+                ))}
                 {tableRows.length === 0 && (
-                  <div className="px-3 py-5 text-center text-xs text-slate-400">
+                  <div className="rounded-xl border border-white/10 bg-slate-950/40 p-4 text-xs text-slate-400">
                     No files in this folder yet.
                   </div>
                 )}
               </div>
-            </div>
+            )}
+
+            {viewMode === "kanban" && (
+              <div className="grid gap-3 lg:grid-cols-3">
+                {kanbanColumns.map((column) => (
+                  <div
+                    key={column.status}
+                    onDragOver={handleStatusDragOver}
+                    onDrop={(event) =>
+                      handleStatusDrop(event, column.status)
+                    }
+                    className="rounded-xl border border-white/10 bg-slate-950/40 p-3 text-xs text-slate-200"
+                  >
+                    <div className="mb-2 flex items-center justify-between text-xs font-semibold text-slate-300">
+                      <span>{column.status}</span>
+                      <span className="text-[11px] text-slate-500">
+                        {column.items.length}
+                      </span>
+                    </div>
+                    <div className="space-y-2">
+                      {column.items.map((article) => (
+                        <div
+                          key={article.id}
+                          draggable
+                          onDragStart={(event) =>
+                            handleStatusDragStart(event, article.id)
+                          }
+                          onDoubleClick={() =>
+                            router.push(`/editor?key=${article.id}`)
+                          }
+                          className="rounded-lg border border-white/10 bg-slate-950/70 px-3 py-2 text-xs text-slate-200 transition hover:border-white/30"
+                        >
+                          <p className="font-semibold text-white">
+                            {article.articleName}
+                          </p>
+                          <p className="text-[11px] text-slate-500">
+                            {formatDate(article.updatedAt || article.creationDate)}
+                          </p>
+                        </div>
+                      ))}
+                      {column.items.length === 0 && (
+                        <div className="rounded-lg border border-dashed border-white/10 px-3 py-2 text-[11px] text-slate-500">
+                          Drop articles here.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
 
             {contextMenu && (
               <div
