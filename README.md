@@ -4,7 +4,7 @@
 
 # Saathi
 
-Saathi is an AI powered SEO workspace for PDF-based content and article editing. It combines a Next.js UI, a rich text editor, and a PostgreSQL-backed data layer with Clerk authentication to streamline content creation and SEO review.
+Saathi is an AI powered SEO workspace for PDF-based content and article editing. It combines a Next.js UI, a rich text editor, and a PostgreSQL-backed data layer to streamline content creation and SEO review.
 
 ## Table of Contents
 
@@ -17,13 +17,17 @@ Saathi is an AI powered SEO workspace for PDF-based content and article editing.
   - [Prerequisites](#prerequisites)
   - [Prerequisites: Install Node.js](#prerequisites-install-nodejs)
   - [Prerequisites: Install PostgreSQL](#prerequisites-install-postgresql)
-  - [Prerequisites: Clerk Account and Keys](#prerequisites-clerk-account-and-keys)
   - [Install](#install)
   - [Configure Environment](#configure-environment)
   - [No PostgreSQL Installed?](#no-postgresql-installed)
   - [Initialize the Database (Prisma)](#initialize-the-database-prisma)
   - [Run Locally](#run-locally)
   - [Start and Use the App](#start-and-use-the-app)
+- [Full Setup Paths](#full-setup-paths)
+  - [Path A: Local PostgreSQL Installed](#path-a-local-postgresql-installed)
+  - [Path B: Docker PostgreSQL](#path-b-docker-postgresql)
+  - [Path C: Hosted PostgreSQL](#path-c-hosted-postgresql)
+- [App Health Checks](#app-health-checks)
 - [API](#api)
   - [POST /api/seo](#post-apiseo)
   - [GET /api/pdf-loader](#get-apipdf-loader)
@@ -38,7 +42,7 @@ Saathi is an AI powered SEO workspace for PDF-based content and article editing.
 - Upload PDFs and store metadata in PostgreSQL.
 - Edit and manage articles with a TipTap-based editor.
 - Run an SEO audit against any URL through a dedicated API route.
-- Work inside a Next.js App Router UI with Clerk authentication.
+- Work inside a Next.js App Router UI.
 
 ## Key Features
 
@@ -53,7 +57,6 @@ Saathi is an AI powered SEO workspace for PDF-based content and article editing.
 - Next.js 15 (App Router)
 - React 19
 - PostgreSQL + Prisma
-- Clerk (auth)
 - TipTap editor
 - Puppeteer + Cheerio (SEO analysis)
 - Tailwind CSS 4
@@ -86,7 +89,7 @@ saathi/
 Install Tools -> Configure Environment -> Initialize Database -> Run App -> Use UI
      |                   |                    |                 |         |
    Node.js            .env.local         Prisma migrate      next dev   Dashboard
-   PostgreSQL         Clerk keys          Database URL       localhost  Workspace
+   PostgreSQL         DATABASE_URL        Database URL       localhost  Workspace
 ```
 
 ### Visual Checklist
@@ -96,18 +99,111 @@ Use this checklist to confirm your setup is complete:
 - [ ] Node.js 18+ installed (`node -v`)
 - [ ] npm installed (`npm -v`)
 - [ ] PostgreSQL running (`psql --version`)
-- [ ] Clerk keys added to `.env.local`
 - [ ] `DATABASE_URL` points to a working database
 - [ ] Prisma migration ran successfully
 - [ ] App running at `http://localhost:3000`
 
 ### Quickstart (Copy/Paste)
 
-If you already have Node.js, Postgres, and Clerk keys:
+If you already have Node.js and Postgres:
 
 ```bash
 npm install
-# create .env.local with DATABASE_URL + Clerk keys
+# create .env.local with DATABASE_URL
+npx prisma migrate dev --name init
+npm run dev
+```
+
+### Default Local Setup (Fresh Machine)
+
+Use this when you have nothing installed yet and want a full, local setup.
+
+Step 1: Install Node.js (macOS/Linux via nvm)
+```bash
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+source ~/.nvm/nvm.sh
+nvm install 18
+nvm use 18
+```
+
+Step 2: Install PostgreSQL (choose your OS)
+
+macOS (Homebrew):
+```bash
+brew install postgresql@16
+brew services start postgresql@16
+```
+
+Ubuntu/Debian:
+```bash
+sudo apt update
+sudo apt install -y postgresql postgresql-contrib
+sudo systemctl enable --now postgresql
+```
+
+Windows (Chocolatey):
+```powershell
+choco install postgresql --version=16.0
+```
+
+Step 3: Create a database and user (local install)
+```bash
+psql -U $USER
+```
+
+Inside the `psql` shell:
+```sql
+CREATE USER saathi_user WITH PASSWORD 'saathi_password';
+CREATE DATABASE saathi OWNER saathi_user;
+GRANT ALL PRIVILEGES ON DATABASE saathi TO saathi_user;
+```
+
+Exit:
+```sql
+\q
+```
+
+Step 4: Create `.env.local` in the project root
+```bash
+DATABASE_URL=postgresql://saathi_user:saathi_password@localhost:5432/saathi?schema=public
+PDF_LOADER_URL=
+```
+
+Step 5: Install dependencies and initialize the database
+```bash
+npm install
+npx prisma migrate dev --name init
+```
+
+Step 6: Run the app
+```bash
+npm run dev
+```
+
+Open `http://localhost:3000`.
+
+### Default Setup (Docker Postgres)
+
+Use this if you do not want to install Postgres natively.
+
+Step 1: Start Postgres in Docker
+```bash
+docker run --name saathi-postgres \
+  -e POSTGRES_PASSWORD=postgres \
+  -e POSTGRES_DB=saathi \
+  -p 5432:5432 \
+  -d postgres:16
+```
+
+Step 2: Create `.env.local`
+```bash
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/saathi?schema=public
+PDF_LOADER_URL=
+```
+
+Step 3: Install dependencies, migrate, and run
+```bash
+npm install
 npx prisma migrate dev --name init
 npm run dev
 ```
@@ -120,7 +216,6 @@ Core:
 - Node.js 18+ (LTS recommended)
 - npm (or pnpm/yarn, but npm is assumed below)
 - PostgreSQL 14+ (local or hosted)
-- Clerk account (for auth keys)
 
 Optional:
 - Git (if you plan to clone/fork)
@@ -191,6 +286,28 @@ Verify:
 psql --version
 ```
 
+If you see `zsh: command not found: psql`, add Postgres to your PATH:
+
+macOS (Homebrew):
+```bash
+brew --prefix postgresql@16
+echo 'export PATH="$(brew --prefix postgresql@16)/bin:$PATH"' >> ~/.zshrc
+source ~/.zshrc
+psql --version
+```
+
+Docker alternative (no PATH needed):
+```bash
+docker exec -it saathi-postgres psql -U postgres
+```
+
+Default user note:
+- For local installs, your default Postgres user is often your OS user.
+- Use `$USER` to connect if `postgres` does not exist:
+  ```bash
+  psql -U $USER
+  ```
+
 Create a database and user (local install):
 
 ```bash
@@ -199,7 +316,7 @@ psql -U postgres
 
 Inside the `psql` shell:
 ```sql
-CREATE USER saathi_user WITH PASSWORD 'saathi_password';
+CREATE USER saathi_user WITH PASSWORD 'saathi_password' CREATEDB;
 CREATE DATABASE saathi OWNER saathi_user;
 GRANT ALL PRIVILEGES ON DATABASE saathi TO saathi_user;
 ```
@@ -214,14 +331,33 @@ Test the connection:
 psql "postgresql://saathi_user:saathi_password@localhost:5432/saathi"
 ```
 
-### Prerequisites: Clerk Account and Keys
+Why CREATEDB?
+- `prisma migrate dev` uses a shadow database and needs permission to create it.
 
-1. Create a Clerk account.
-2. Create a new Clerk application.
-3. Copy the publishable key and secret key from your dashboard.
-4. Add `http://localhost:3000` to allowed origins or redirect URLs if needed.
+If you already created the user without `CREATEDB`, fix it:
+```bash
+psql -U postgres -c "ALTER ROLE saathi_user CREATEDB;"
+```
 
-You will use these values in `.env.local`.
+If you get `FATAL: database "<your_user>" does not exist` when running `psql -U $USER`,
+connect to the default `postgres` database instead:
+```bash
+psql -U $USER -d postgres
+```
+Then create the `saathi` database as shown above.
+
+If you see `FATAL: role "postgres" does not exist`:
+
+Option A (use your OS user):
+```bash
+psql -U $USER
+```
+
+Option B (create a postgres superuser role):
+```bash
+createuser -s postgres
+psql -U postgres
+```
 
 ### Install
 
@@ -240,8 +376,6 @@ What this does:
 Create `.env.local`:
 
 ```bash
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=
-CLERK_SECRET_KEY=
 DATABASE_URL=postgresql://USER:PASSWORD@HOST:5432/DB_NAME
 PDF_LOADER_URL=
 ```
@@ -251,21 +385,34 @@ Where to place this file:
 
 Notes:
 - `PDF_LOADER_URL` is optional and used as a default for `/api/pdf-loader`.
-- Clerk variables depend on your Clerk project setup.
 - `DATABASE_URL` must point to a running Postgres database.
 
+Important:
+- Prisma CLI reads `.env` by default.
+- Next.js reads `.env.local` by default.
+
+Recommended: put `DATABASE_URL` in both `.env` and `.env.local`.
+
+If you see `Environment variable not found: DATABASE_URL`, copy `DATABASE_URL`
+into `.env`:
+```bash
+DATABASE_URL=postgresql://USER:PASSWORD@HOST:5432/DB_NAME
+```
+
 Variable-by-variable:
-- `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`: public key from Clerk dashboard.
-- `CLERK_SECRET_KEY`: secret key from Clerk dashboard (server-side only).
 - `DATABASE_URL`: Postgres connection string used by Prisma.
 - `PDF_LOADER_URL`: optional default PDF URL for `/api/pdf-loader`.
 
 Example `.env.local` (local Postgres):
 ```bash
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_example
-CLERK_SECRET_KEY=sk_test_example
 DATABASE_URL=postgresql://saathi_user:saathi_password@localhost:5432/saathi?schema=public
 PDF_LOADER_URL=
+```
+
+If you cannot grant `CREATEDB` to your user, use `prisma db push` instead of
+`prisma migrate dev` to initialize the schema:
+```bash
+npx prisma db push
 ```
 
 DATABASE_URL format (visual):
@@ -324,6 +471,12 @@ What this does:
 - Applies the migration to your database.
 - Generates the Prisma client.
 
+If you get `P3014` (permission denied to create database), grant the user
+`CREATEDB` or run:
+```bash
+npx prisma db push
+```
+
 Optional: open Prisma Studio to inspect data:
 ```bash
 npx prisma studio
@@ -371,12 +524,104 @@ Home -> Dashboard -> New Article -> Editor -> Save
             +-> Workspace -> Title Analyzer
 ```
 
-1. Sign up or sign in with Clerk.
-2. Go to the Dashboard to view your articles list.
-3. Click **+ New Article** to create an article.
-4. Open an article to use the editor and start writing.
-5. Use **Upload PDF** to attach and store PDFs locally.
-6. Use the Workspace tools (like the title analyzer) to review content quality.
+1. Open the Dashboard to view your articles list.
+2. Click **+ New Article** to create an article.
+3. Open an article to use the editor and start writing.
+4. Use **Upload PDF** to attach and store PDFs locally.
+5. Use the Workspace tools (like the title analyzer) to review content quality.
+
+## Full Setup Paths
+
+Follow one of these complete paths end-to-end. Each path includes every step
+required to get the app running.
+
+### Path A: Local PostgreSQL Installed
+
+1. Install Node.js (if missing):
+   ```bash
+   node -v || (curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash && source ~/.nvm/nvm.sh && nvm install 18 && nvm use 18)
+   ```
+2. Install PostgreSQL (macOS example):
+   ```bash
+   brew install postgresql@16
+   brew services start postgresql@16
+   ```
+3. Create DB + user:
+   ```bash
+   psql -U $USER
+   ```
+   ```sql
+   CREATE USER saathi_user WITH PASSWORD 'saathi_password' CREATEDB;
+   CREATE DATABASE saathi OWNER saathi_user;
+   GRANT ALL PRIVILEGES ON DATABASE saathi TO saathi_user;
+   ```
+4. Create `.env.local` and `.env`:
+   ```bash
+   DATABASE_URL=postgresql://saathi_user:saathi_password@localhost:5432/saathi?schema=public
+   PDF_LOADER_URL=
+   ```
+5. Install deps and migrate:
+   ```bash
+   npm install
+   npx prisma migrate dev --name init
+   ```
+6. Run the app:
+   ```bash
+   npm run dev
+   ```
+
+### Path B: Docker PostgreSQL
+
+1. Start Postgres:
+   ```bash
+   docker run --name saathi-postgres \
+     -e POSTGRES_PASSWORD=postgres \
+     -e POSTGRES_DB=saathi \
+     -p 5432:5432 \
+     -d postgres:16
+   ```
+2. Create `.env.local` and `.env`:
+   ```bash
+   DATABASE_URL=postgresql://postgres:postgres@localhost:5432/saathi?schema=public
+   PDF_LOADER_URL=
+   ```
+3. Install deps and migrate:
+   ```bash
+   npm install
+   npx prisma migrate dev --name init
+   ```
+4. Run the app:
+   ```bash
+   npm run dev
+   ```
+
+### Path C: Hosted PostgreSQL
+
+1. Create a database on Neon, Supabase, or Railway.
+2. Copy the connection string from the provider.
+3. Create `.env.local` and `.env`:
+   ```bash
+   DATABASE_URL=postgresql://USER:PASSWORD@HOST:5432/DB_NAME?schema=public
+   PDF_LOADER_URL=
+   ```
+4. Install deps and migrate:
+   ```bash
+   npm install
+   npx prisma migrate dev --name init
+   ```
+5. Run the app:
+   ```bash
+   npm run dev
+   ```
+
+## App Health Checks
+
+After `npm run dev`:
+
+1. Open `http://localhost:3000`.
+2. Open `http://localhost:3000/api/articles` (should return JSON).
+3. Create a new article in the Dashboard.
+4. Open the article and save changes in the editor.
 
 ## API
 
@@ -450,22 +695,47 @@ managed object store (S3, GCS, etc).
 
 Common issues and fixes:
 
+- `Environment variable not found: DATABASE_URL`
+  - Add `DATABASE_URL` to `.env` (Prisma CLI reads `.env` by default).
+  - Restart the dev server and rerun migrations.
+
 - `Error: DATABASE_URL is not set`
   - Ensure `.env.local` exists and includes `DATABASE_URL`.
   - Restart the dev server after editing environment variables.
+
+- `GET /api/articles 500`
+  - Ensure the database is running and migrations applied.
+  - Verify `DATABASE_URL` points to the correct database.
 
 - `P1001: Can't reach database server`
   - Verify Postgres is running.
   - Check host/port in `DATABASE_URL`.
   - If using Docker, confirm port 5432 is published.
 
+- `P3014: Prisma Migrate could not create the shadow database`
+  - Grant `CREATEDB` to the database user.
+  - Or use `npx prisma db push` for a dev-only sync.
+  - Example fix: `psql -U postgres -c "ALTER ROLE saathi_user CREATEDB;"`
+
 - `Prisma migrate` errors
   - Ensure the database user has create table privileges.
   - Delete `prisma/migrations` only if you want a fresh start and the DB is disposable.
 
-- Clerk auth not working
-  - Verify `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` and `CLERK_SECRET_KEY`.
-  - Make sure `http://localhost:3000` is allowed in Clerk settings.
+- `zsh: command not found: psql`
+  - Postgres is not installed or not on your PATH.
+  - If installed via Homebrew, run:
+    ```bash
+    brew --prefix postgresql@16
+    echo 'export PATH="$(brew --prefix postgresql@16)/bin:$PATH"' >> ~/.zshrc
+    source ~/.zshrc
+    psql --version
+    ```
+  - If using Docker, run `docker exec -it saathi-postgres psql -U postgres`.
+
+- `FATAL: role "postgres" does not exist`
+  - Your local Postgres user is not `postgres`.
+  - Use your OS user: `psql -U $USER`
+  - Or create the role: `createuser -s postgres`, then `psql -U postgres`
 
 ## License
 
