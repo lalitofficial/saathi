@@ -630,6 +630,41 @@ After `npm run dev`:
 
 ## API
 
+### GET `/api/articles`
+
+Returns all articles (latest first).
+
+```bash
+curl http://localhost:3000/api/articles
+```
+
+### POST `/api/articles`
+
+Create a new article.
+
+```json
+{
+  "articleName": "My Article",
+  "articleContent": "",
+  "createdBy": "user"
+}
+```
+
+### PATCH `/api/articles/:id`
+
+Update article name/content.
+
+```json
+{
+  "articleName": "Updated Title",
+  "articleContent": "Updated content"
+}
+```
+
+### DELETE `/api/articles/:id`
+
+Delete an article by id.
+
 ### POST `/api/seo`
 
 Request body:
