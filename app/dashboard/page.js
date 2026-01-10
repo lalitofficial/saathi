@@ -41,10 +41,32 @@ const INITIAL_TREE = [
 ];
 const INITIAL_EXPANDED = INITIAL_TREE.map((node) => node.id);
 
-const STATUS_TAGS = ["Active", "Draft", "Archived"];
-
 const createFolderId = (name) =>
   `${name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${Date.now()}`;
+
+const getArticleStatus = (article) => {
+  const contentLength = article.articleContent?.trim().length ?? 0;
+  return contentLength < 80 ? "Draft" : "Active";
+};
+
+const formatDate = (value) => {
+  if (!value) return "—";
+  return new Date(value).toLocaleDateString();
+};
+
+const flattenFolders = (nodes, parentPath = []) => {
+  return nodes.flatMap((node) => {
+    const entry = {
+      id: node.id,
+      name: node.name,
+      path: [...parentPath, node.id],
+    };
+    return [
+      entry,
+      ...flattenFolders(node.children || [], [...parentPath, node.id]),
+    ];
+  });
+};
 
 const findNodeByPath = (nodes, pathIds) => {
   let current = { children: nodes };
@@ -130,6 +152,37 @@ function Dashboard() {
       node.name.toLowerCase().includes(normalizedSearch)
     );
   }, [currentChildren, normalizedSearch]);
+
+  const folderStats = useMemo(() => {
+    const stats = new Map();
+    const flatFolders = flattenFolders(folderTree);
+    flatFolders.forEach((folder) => {
+      const keyword = folder.name.replace(/\s+/g, "").toLowerCase();
+      const matching = articles.filter((article) =>
+        article.articleName?.toLowerCase().includes(keyword)
+      );
+      const totalLength = matching.reduce(
+        (sum, article) => sum + (article.articleContent?.length ?? 0),
+        0
+      );
+      const latest = matching.reduce((maxDate, article) => {
+        const candidate = article.updatedAt || article.creationDate;
+        if (!candidate) return maxDate;
+        const time = new Date(candidate).getTime();
+        return time > maxDate ? time : maxDate;
+      }, 0);
+      stats.set(folder.id, {
+        count: matching.length,
+        size:
+          totalLength > 0
+            ? `${Math.max(1, Math.round(totalLength / 1024))} KB`
+            : "—",
+        updated: latest ? formatDate(latest) : "—",
+        status: matching.length ? "Active" : "Draft",
+      });
+    });
+    return stats;
+  }, [articles, folderTree]);
 
   const handleNewFolder = () => {
     if (!folderInput.trim()) return;
@@ -231,16 +284,19 @@ function Dashboard() {
 
   const tableRows = useMemo(() => {
     const folderRows = visibleFolders
-      .map((folder) => ({
-        id: folder.id,
-        name: folder.name,
-        type: "Folder",
-        size: `${(folder.children?.length || 0) * 4 + 8} MB`,
-        updated: "24 Jan, 2024",
-        status: "Active",
-        kind: "folder",
-        path: [...pathStack, folder.id],
-      }))
+      .map((folder) => {
+        const stats = folderStats.get(folder.id) || {};
+        return {
+          id: folder.id,
+          name: folder.name,
+          type: "Folder",
+          size: stats.size || "—",
+          updated: stats.updated || "—",
+          status: stats.status || "Draft",
+          kind: "folder",
+          path: [...pathStack, folder.id],
+        };
+      })
       .sort((a, b) =>
         sortKey === "alphabetical"
           ? a.name.localeCompare(b.name)
@@ -252,7 +308,8 @@ function Dashboard() {
         if (sortKey === "alphabetical") {
           return a.articleName.localeCompare(b.articleName);
         }
-        return new Date(b.creationDate) - new Date(a.creationDate);
+        return new Date(b.updatedAt || b.creationDate) -
+          new Date(a.updatedAt || a.creationDate);
       })
       .map((article) => ({
         id: article.id,
@@ -265,15 +322,13 @@ function Dashboard() {
                 Math.round(article.articleContent.length / 180)
               )} KB`
             : "—",
-        updated: new Date(article.creationDate).toLocaleDateString(),
-        status: STATUS_TAGS[
-          Math.floor(Math.random() * STATUS_TAGS.length)
-        ],
+        updated: formatDate(article.updatedAt || article.creationDate),
+        status: getArticleStatus(article),
         kind: "file",
       }));
 
     return [...folderRows, ...articleRows];
-  }, [filteredArticles, pathStack, sortKey, visibleFolders]);
+  }, [filteredArticles, folderStats, pathStack, sortKey, visibleFolders]);
 
   const sortLabel = useMemo(() => {
     if (sortKey === "alphabetical") return "A - Z";
