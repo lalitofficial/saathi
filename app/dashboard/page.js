@@ -44,6 +44,21 @@ const INITIAL_EXPANDED = INITIAL_TREE.map((node) => node.id);
 const createFolderId = (name) =>
   `${name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${Date.now()}`;
 
+const renameFolderInTree = (nodes, targetId, nextName) => {
+  return nodes.map((node) => {
+    if (node.id === targetId) {
+      return { ...node, name: nextName };
+    }
+    if (!node.children?.length) {
+      return node;
+    }
+    return {
+      ...node,
+      children: renameFolderInTree(node.children, targetId, nextName),
+    };
+  });
+};
+
 const getArticleStatus = (article) => {
   const contentLength = article.articleContent?.trim().length ?? 0;
   return contentLength < 80 ? "Draft" : "Active";
@@ -52,6 +67,23 @@ const getArticleStatus = (article) => {
 const formatDate = (value) => {
   if (!value) return "—";
   return new Date(value).toLocaleDateString();
+};
+
+const MENU_OPTIONS = {
+  folder: [
+    { label: "Open", action: "open" },
+    { label: "Rename", action: "rename" },
+    { label: "New folder inside", action: "new-folder" },
+    { label: "New article", action: "new-article" },
+  ],
+  file: [
+    { label: "Open in editor", action: "open" },
+    { label: "Rename", action: "rename" },
+  ],
+  empty: [
+    { label: "New folder", action: "new-folder" },
+    { label: "New article", action: "new-article" },
+  ],
 };
 
 const flattenFolders = (nodes, parentPath = []) => {
@@ -113,6 +145,7 @@ function Dashboard() {
   const [selectedIds, setSelectedIds] = useState([]);
   const [selectedNodeId, setSelectedNodeId] = useState(null);
   const [lastSelectedIndex, setLastSelectedIndex] = useState(null);
+  const [contextMenu, setContextMenu] = useState(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -130,6 +163,16 @@ function Dashboard() {
     loadArticles();
     return () => {
       isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    const closeMenu = () => setContextMenu(null);
+    window.addEventListener("click", closeMenu);
+    window.addEventListener("scroll", closeMenu, true);
+    return () => {
+      window.removeEventListener("click", closeMenu);
+      window.removeEventListener("scroll", closeMenu, true);
     };
   }, []);
 
@@ -424,6 +467,78 @@ function Dashboard() {
     }
   };
 
+  const openContextMenu = (event, payload) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setContextMenu({
+      x: event.clientX,
+      y: event.clientY,
+      ...payload,
+    });
+    if (
+      (payload.kind === "file" || payload.kind === "folder") &&
+      payload.source !== "tree"
+    ) {
+      setSelectedIds([payload.id]);
+    }
+    if (payload.source === "tree") {
+      setSelectedNodeId(payload.id);
+    }
+    if (typeof payload.index === "number") {
+      setLastSelectedIndex(payload.index);
+    }
+  };
+
+  const handleContextAction = async (action) => {
+    if (!contextMenu) return;
+    if (action === "open") {
+      if (contextMenu.kind === "folder") {
+        navigateToPath(contextMenu.path || []);
+      }
+      if (contextMenu.kind === "file") {
+        router.push(`/editor?key=${contextMenu.id}`);
+      }
+    }
+    if (action === "new-folder") {
+      setShowNewFolder(true);
+    }
+    if (action === "new-article") {
+      await handleNewArticle();
+    }
+    if (action === "rename" && contextMenu.name) {
+      const nextName = window.prompt("Rename", contextMenu.name);
+      if (nextName?.trim()) {
+        if (contextMenu.kind === "folder") {
+          setFolderTree((prev) =>
+            renameFolderInTree(prev, contextMenu.id, nextName.trim())
+          );
+        }
+        if (contextMenu.kind === "file") {
+          try {
+            const response = await fetch(`/api/articles/${contextMenu.id}`, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ articleName: nextName.trim() }),
+            });
+            const payload = await response.json();
+            if (response.ok && payload?.data) {
+              setArticles((prev) =>
+                prev.map((article) =>
+                  article.id === contextMenu.id
+                    ? payload.data
+                    : article
+                )
+              );
+            }
+          } catch (error) {
+            console.error("Rename failed", error);
+          }
+        }
+      }
+    }
+    setContextMenu(null);
+  };
+
   const breadcrumbs = useMemo(() => {
     const crumbs = [{ name: "Home", path: [] }];
     let nodes = folderTree;
@@ -454,6 +569,15 @@ function Dashboard() {
       return (
         <div key={node.id}>
           <div
+            onContextMenu={(event) =>
+              openContextMenu(event, {
+                kind: "folder",
+                source: "tree",
+                id: node.id,
+                name: node.name,
+                path: nodePath,
+              })
+            }
             className={`flex items-center gap-1 rounded-md px-2 py-1 text-xs transition ${
               isActive || isSelected
                 ? "bg-white/10 text-white"
@@ -636,7 +760,12 @@ function Dashboard() {
               </div>
             )}
 
-            <div className="overflow-hidden rounded-2xl border border-white/10 bg-slate-950/40">
+            <div
+              onContextMenu={(event) =>
+                openContextMenu(event, { kind: "empty" })
+              }
+              className="overflow-hidden rounded-2xl border border-white/10 bg-slate-950/40"
+            >
               <div className="grid grid-cols-[0.35fr_2fr_0.8fr_0.8fr_0.8fr_0.8fr_0.5fr] gap-2 border-b border-white/10 px-3 py-1.5 text-[10px] font-semibold tracking-tight text-slate-400">
                 <span className="flex items-center">
                   <input
@@ -664,6 +793,15 @@ function Dashboard() {
                       key={row.id}
                       onClick={(event) =>
                         handleRowSelect(event, row, index)
+                      }
+                      onContextMenu={(event) =>
+                        openContextMenu(event, {
+                          kind: row.kind,
+                          id: row.id,
+                          name: row.name,
+                          path: row.path,
+                          index,
+                        })
                       }
                       onDoubleClick={() => {
                         if (row.kind === "folder") {
@@ -716,6 +854,26 @@ function Dashboard() {
                 )}
               </div>
             </div>
+
+            {contextMenu && (
+              <div
+                style={{ top: contextMenu.y, left: contextMenu.x }}
+                className="fixed z-50 w-48 rounded-lg border border-white/10 bg-slate-950/95 p-1 text-xs text-slate-200 shadow-lg"
+              >
+                {(MENU_OPTIONS[contextMenu.kind] ||
+                  MENU_OPTIONS.empty
+                ).map((item) => (
+                  <button
+                    key={item.action}
+                    onClick={() => handleContextAction(item.action)}
+                    className="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-xs text-slate-200 transition hover:bg-white/10"
+                  >
+                    <span>{item.label}</span>
+                    <ChevronRight size={12} className="text-slate-500" />
+                  </button>
+                ))}
+              </div>
+            )}
           </main>
         </div>
       </div>
