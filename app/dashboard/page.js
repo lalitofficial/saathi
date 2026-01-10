@@ -59,6 +59,25 @@ const renameFolderInTree = (nodes, targetId, nextName) => {
   });
 };
 
+const collectFolderIds = (node) => {
+  if (!node) return [];
+  return [
+    node.id,
+    ...(node.children || []).flatMap((child) => collectFolderIds(child)),
+  ];
+};
+
+const removeFolderFromTree = (nodes, targetId) => {
+  return nodes
+    .filter((node) => node.id !== targetId)
+    .map((node) => ({
+      ...node,
+      children: node.children?.length
+        ? removeFolderFromTree(node.children, targetId)
+        : node.children,
+    }));
+};
+
 const extractTags = (content = "") => {
   const matches = content.match(/#[a-z0-9_-]+/gi) || [];
   return Array.from(
@@ -95,10 +114,12 @@ const MENU_OPTIONS = {
     { label: "Rename", action: "rename" },
     { label: "New folder inside", action: "new-folder" },
     { label: "New article", action: "new-article" },
+    { label: "Delete folder", action: "delete" },
   ],
   file: [
     { label: "Open in editor", action: "open" },
     { label: "Rename", action: "rename" },
+    { label: "Delete article", action: "delete" },
   ],
   empty: [
     { label: "New folder", action: "new-folder" },
@@ -425,6 +446,13 @@ function Dashboard() {
     });
   }, [articles, articleLocations, currentFolder, currentPathKey, isRoot]);
 
+  function getStatusForArticle(article) {
+    if (articleStatuses[article.id]) {
+      return articleStatuses[article.id];
+    }
+    return getArticleStatus(article) === "Draft" ? "Draft" : "Ready";
+  }
+
   const filteredArticles = useMemo(() => {
     let items = rowArticles;
     if (normalizedSearch) {
@@ -531,13 +559,6 @@ function Dashboard() {
     if (sortKey === "alphabetical") return "A - Z";
     return "Newest";
   }, [sortKey]);
-
-  const getStatusForArticle = (article) => {
-    if (articleStatuses[article.id]) {
-      return articleStatuses[article.id];
-    }
-    return getArticleStatus(article) === "Draft" ? "Draft" : "Ready";
-  };
 
   const kanbanColumns = useMemo(() => {
     const map = new Map();
@@ -780,6 +801,110 @@ function Dashboard() {
           } catch (error) {
             console.error("Rename failed", error);
           }
+        }
+      }
+    }
+    if (action === "delete") {
+      if (contextMenu.kind === "folder") {
+        const flatFolders = flattenFolders(folderTree);
+        const target = flatFolders.find(
+          (folder) => folder.id === contextMenu.id
+        );
+        const node = findNodeById(folderTree, contextMenu.id);
+        const removedIds = collectFolderIds(node);
+        if (!target || removedIds.length === 0) {
+          setContextMenu(null);
+          return;
+        }
+        const confirmed = window.confirm(
+          `Delete "${target.name}"? Items inside will move to the parent folder.`
+        );
+        if (!confirmed) {
+          setContextMenu(null);
+          return;
+        }
+        const removedPathKey = target.path.join("/");
+        const parentPath = target.path.slice(0, -1);
+        const parentPathKey = parentPath.join("/");
+        const nextHistoryStack = historyStack.map((path) => {
+          const cutIndex = path.findIndex((id) =>
+            removedIds.includes(id)
+          );
+          if (cutIndex === -1) return path;
+          return path.slice(0, cutIndex);
+        });
+        const sanitizedHistory =
+          nextHistoryStack.length > 0 ? nextHistoryStack : [[]];
+        const nextHistoryIndex = Math.min(
+          historyIndex,
+          sanitizedHistory.length - 1
+        );
+        setFolderTree((prev) =>
+          removeFolderFromTree(prev, contextMenu.id)
+        );
+        setExpandedNodes((prev) =>
+          prev.filter((id) => !removedIds.includes(id))
+        );
+        setSelectedIds((prev) =>
+          prev.filter((id) => !removedIds.includes(id))
+        );
+        setSelectedNodeId((prev) =>
+          removedIds.includes(prev) ? null : prev
+        );
+        setArticleLocations((prev) => {
+          const next = { ...prev };
+          Object.entries(next).forEach(([id, location]) => {
+            if (!location) return;
+            if (
+              location === removedPathKey ||
+              location.startsWith(`${removedPathKey}/`)
+            ) {
+              if (parentPathKey) {
+                next[id] = parentPathKey;
+              } else {
+                delete next[id];
+              }
+            }
+          });
+          return next;
+        });
+        setHistoryStack(sanitizedHistory);
+        setHistoryIndex(nextHistoryIndex);
+        setSearchTerm("");
+      }
+      if (contextMenu.kind === "file") {
+        const confirmed = window.confirm(
+          `Delete "${contextMenu.name || "this article"}"?`
+        );
+        if (!confirmed) {
+          setContextMenu(null);
+          return;
+        }
+        try {
+          const response = await fetch(
+            `/api/articles/${contextMenu.id}`,
+            { method: "DELETE" }
+          );
+          if (response.ok) {
+            setArticles((prev) =>
+              prev.filter((article) => article.id !== contextMenu.id)
+            );
+            setArticleLocations((prev) => {
+              const next = { ...prev };
+              delete next[contextMenu.id];
+              return next;
+            });
+            setArticleStatuses((prev) => {
+              const next = { ...prev };
+              delete next[contextMenu.id];
+              return next;
+            });
+            setSelectedIds((prev) =>
+              prev.filter((id) => id !== contextMenu.id)
+            );
+          }
+        } catch (error) {
+          console.error("Delete failed", error);
         }
       }
     }

@@ -44,3 +44,16 @@ export async function PATCH(request, { params }) {
     );
   }
 }
+
+export async function DELETE(request, { params }) {
+  try {
+    const { id } = params;
+    const article = await prisma.article.delete({ where: { id } });
+    return NextResponse.json({ success: true, data: article });
+  } catch (error) {
+    return NextResponse.json(
+      { success: false, error: error?.message || "Failed to delete article." },
+      { status: 500 }
+    );
+  }
+}
