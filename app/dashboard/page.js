@@ -142,10 +142,12 @@ function Dashboard() {
   const [searchTerm, setSearchTerm] = useState("");
   const [sortKey, setSortKey] = useState("newest");
   const [showNewFolder, setShowNewFolder] = useState(false);
+  const [articleLocations, setArticleLocations] = useState({});
   const [selectedIds, setSelectedIds] = useState([]);
   const [selectedNodeId, setSelectedNodeId] = useState(null);
   const [lastSelectedIndex, setLastSelectedIndex] = useState(null);
   const [contextMenu, setContextMenu] = useState(null);
+  const [dragOverId, setDragOverId] = useState(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -181,6 +183,7 @@ function Dashboard() {
     [historyIndex, historyStack]
   );
   const isRoot = pathStack.length === 0;
+  const currentPathKey = pathStack.join("/");
   const currentNode = useMemo(
     () => findNodeByPath(folderTree, pathStack),
     [folderTree, pathStack]
@@ -203,9 +206,14 @@ function Dashboard() {
     const flatFolders = flattenFolders(folderTree);
     flatFolders.forEach((folder) => {
       const keyword = folder.name.replace(/\s+/g, "").toLowerCase();
-      const matching = articles.filter((article) =>
-        article.articleName?.toLowerCase().includes(keyword)
-      );
+      const pathKey = folder.path.join("/");
+      const matching = articles.filter((article) => {
+        const location = articleLocations[article.id];
+        if (location) {
+          return location === pathKey;
+        }
+        return article.articleName?.toLowerCase().includes(keyword);
+      });
       const totalLength = matching.reduce(
         (sum, article) => sum + (article.articleContent?.length ?? 0),
         0
@@ -227,7 +235,7 @@ function Dashboard() {
       });
     });
     return stats;
-  }, [articles, folderTree]);
+  }, [articles, articleLocations, folderTree]);
 
   const handleNewFolder = () => {
     if (!folderInput.trim()) return;
@@ -283,6 +291,12 @@ function Dashboard() {
       const payload = await response.json();
       if (response.ok && payload?.data) {
         setArticles((prev) => [payload.data, ...prev]);
+        if (!isRoot) {
+          setArticleLocations((prev) => ({
+            ...prev,
+            [payload.data.id]: currentPathKey,
+          }));
+        }
         router.push(`/editor?key=${payload.data.id}`);
       }
     } catch (error) {
@@ -319,9 +333,13 @@ function Dashboard() {
     const keyword = currentFolder?.replace(/\s+/g, "").toLowerCase();
     return articles.filter((article) => {
       if (!article.articleName) return false;
+      const location = articleLocations[article.id];
+      if (location) {
+        return location === currentPathKey;
+      }
       return article.articleName.toLowerCase().includes(keyword || "");
     });
-  }, [articles, currentFolder, isRoot]);
+  }, [articles, articleLocations, currentFolder, currentPathKey, isRoot]);
 
   const filteredArticles = useMemo(() => {
     if (!normalizedSearch) return rowArticles;
@@ -539,6 +557,52 @@ function Dashboard() {
     setContextMenu(null);
   };
 
+  const handleDragStart = (event, row) => {
+    if (row.kind !== "file") return;
+    const ids = selectedIds.includes(row.id)
+      ? selectedIds
+      : [row.id];
+    event.dataTransfer.setData(
+      "application/x-saathi-articles",
+      JSON.stringify(ids)
+    );
+    event.dataTransfer.effectAllowed = "move";
+  };
+
+  const handleDragOverFolder = (event, folderId) => {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+    setDragOverId(folderId);
+  };
+
+  const handleDragLeaveFolder = (folderId) => {
+    setDragOverId((prev) => (prev === folderId ? null : prev));
+  };
+
+  const handleDropOnFolder = (event, folderPath, folderId) => {
+    event.preventDefault();
+    setDragOverId(null);
+    const data = event.dataTransfer.getData(
+      "application/x-saathi-articles"
+    );
+    if (!data) return;
+    let ids = [];
+    try {
+      ids = JSON.parse(data);
+    } catch (error) {
+      return;
+    }
+    const nextPathKey = folderPath.join("/");
+    setArticleLocations((prev) => {
+      const next = { ...prev };
+      ids.forEach((id) => {
+        next[id] = nextPathKey;
+      });
+      return next;
+    });
+    setSelectedIds(ids);
+  };
+
   const breadcrumbs = useMemo(() => {
     const crumbs = [{ name: "Home", path: [] }];
     let nodes = folderTree;
@@ -566,6 +630,7 @@ function Dashboard() {
       const hasChildren = (node.children || []).length > 0;
       const isActive = pathStack[pathStack.length - 1] === node.id;
       const isSelected = selectedNodeId === node.id;
+      const isDragTarget = dragOverId === node.id;
       return (
         <div key={node.id}>
           <div
@@ -578,11 +643,16 @@ function Dashboard() {
                 path: nodePath,
               })
             }
+            onDragOver={(event) => handleDragOverFolder(event, node.id)}
+            onDragLeave={() => handleDragLeaveFolder(node.id)}
+            onDrop={(event) =>
+              handleDropOnFolder(event, nodePath, node.id)
+            }
             className={`flex items-center gap-1 rounded-md px-2 py-1 text-xs transition ${
               isActive || isSelected
                 ? "bg-white/10 text-white"
                 : "text-slate-300"
-            }`}
+            } ${isDragTarget ? "bg-sky-500/10" : ""}`}
             style={{ paddingLeft: `${depth * 12 + 4}px` }}
           >
             <button
@@ -788,6 +858,8 @@ function Dashboard() {
               <div className="divide-y divide-white/5">
                 {tableRows.map((row, index) => {
                   const isSelected = selectedIds.includes(row.id);
+                  const isDragTarget =
+                    row.kind === "folder" && dragOverId === row.id;
                   return (
                     <div
                       key={row.id}
@@ -810,9 +882,23 @@ function Dashboard() {
                           router.push(`/editor?key=${row.id}`);
                         }
                       }}
+                      draggable={row.kind === "file"}
+                      onDragStart={(event) => handleDragStart(event, row)}
+                      onDragEnd={() => setDragOverId(null)}
+                      onDragOver={(event) =>
+                        row.kind === "folder" &&
+                        handleDragOverFolder(event, row.id)
+                      }
+                      onDragLeave={() =>
+                        row.kind === "folder" && handleDragLeaveFolder(row.id)
+                      }
+                      onDrop={(event) =>
+                        row.kind === "folder" &&
+                        handleDropOnFolder(event, row.path, row.id)
+                      }
                       className={`grid grid-cols-[0.35fr_2fr_0.8fr_0.8fr_0.8fr_0.8fr_0.5fr] items-center gap-2 px-3 py-2 text-xs text-slate-100 transition hover:bg-white/5 ${
                         isSelected ? "bg-white/5" : ""
-                      }`}
+                      } ${isDragTarget ? "bg-sky-500/10" : ""}`}
                     >
                       <input
                         type="checkbox"
