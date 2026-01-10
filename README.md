@@ -48,6 +48,7 @@ Saathi is an AI powered SEO workspace for PDF-based content and article editing.
 
 - PDF upload flow with stored metadata and local file storage.
 - Rich text editing with TipTap.
+- Explorer-style dashboard with folder tree, search, filters, drag + drop, and context menus (rename/delete).
 - SEO analyzer API with HTML parsing and Puppeteer fallback.
 - Modular UI components for dashboard and workspace.
 - Prisma schema for users, articles, and PDF files.
@@ -526,9 +527,13 @@ Home -> Dashboard -> New Article -> Editor -> Save
 
 1. Open the Dashboard to view your articles list.
 2. Click **+ New Article** to create an article.
-3. Open an article to use the editor and start writing.
+3. Double-click an article to open it in the editor.
 4. Use **Upload PDF** to attach and store PDFs locally.
 5. Use the Workspace tools (like the title analyzer) to review content quality.
+
+Explorer interactions:
+- Right-click a folder or article to open, rename, or delete it.
+- Deleting a folder moves its contents to the parent folder.
 
 ## Full Setup Paths
 
