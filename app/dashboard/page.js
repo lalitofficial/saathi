@@ -110,7 +110,9 @@ function Dashboard() {
   const [searchTerm, setSearchTerm] = useState("");
   const [sortKey, setSortKey] = useState("newest");
   const [showNewFolder, setShowNewFolder] = useState(false);
-  const [selectedId, setSelectedId] = useState(null);
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [selectedNodeId, setSelectedNodeId] = useState(null);
+  const [lastSelectedIndex, setLastSelectedIndex] = useState(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -211,7 +213,8 @@ function Dashboard() {
     setExpandedNodes((prev) =>
       Array.from(new Set([...prev, ...nextPath]))
     );
-    setSelectedId(null);
+    setSelectedIds([]);
+    setSelectedNodeId(null);
     setSearchTerm("");
   };
 
@@ -251,14 +254,16 @@ function Dashboard() {
   const handleBack = () => {
     if (!canGoBack) return;
     setHistoryIndex((prev) => prev - 1);
-    setSelectedId(null);
+    setSelectedIds([]);
+    setSelectedNodeId(null);
     setSearchTerm("");
   };
 
   const handleForward = () => {
     if (!canGoForward) return;
     setHistoryIndex((prev) => prev + 1);
-    setSelectedId(null);
+    setSelectedIds([]);
+    setSelectedNodeId(null);
     setSearchTerm("");
   };
 
@@ -335,6 +340,90 @@ function Dashboard() {
     return "Newest";
   }, [sortKey]);
 
+  const tableRowIds = useMemo(
+    () => tableRows.map((row) => row.id),
+    [tableRows]
+  );
+
+  useEffect(() => {
+    setSelectedIds((prev) =>
+      prev.filter((id) => tableRowIds.includes(id))
+    );
+  }, [tableRowIds]);
+
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      const target = event.target;
+      const tagName = target?.tagName;
+      const isEditable =
+        tagName === "INPUT" ||
+        tagName === "TEXTAREA" ||
+        target?.isContentEditable;
+      if (isEditable) return;
+      if (
+        (event.metaKey || event.ctrlKey) &&
+        event.key.toLowerCase() === "a"
+      ) {
+        event.preventDefault();
+        setSelectedIds(tableRowIds);
+        setLastSelectedIndex(
+          tableRowIds.length ? tableRowIds.length - 1 : null
+        );
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [tableRowIds]);
+
+  const handleRowSelect = (event, row, index) => {
+    const isMeta = event.metaKey || event.ctrlKey;
+    const isShift = event.shiftKey;
+    setSelectedIds((prev) => {
+      if (isShift && lastSelectedIndex !== null) {
+        const start = Math.min(lastSelectedIndex, index);
+        const end = Math.max(lastSelectedIndex, index);
+        const rangeIds = tableRows
+          .slice(start, end + 1)
+          .map((item) => item.id);
+        if (isMeta) {
+          return Array.from(new Set([...prev, ...rangeIds]));
+        }
+        return rangeIds;
+      }
+      if (isMeta) {
+        if (prev.includes(row.id)) {
+          return prev.filter((id) => id !== row.id);
+        }
+        return [...prev, row.id];
+      }
+      return [row.id];
+    });
+    setLastSelectedIndex(index);
+  };
+
+  const handleToggleRow = (event, row, index) => {
+    event.stopPropagation();
+    setSelectedIds((prev) => {
+      if (prev.includes(row.id)) {
+        return prev.filter((id) => id !== row.id);
+      }
+      return [...prev, row.id];
+    });
+    setLastSelectedIndex(index);
+  };
+
+  const handleToggleAll = (event) => {
+    event.stopPropagation();
+    if (tableRowIds.length === 0) return;
+    if (selectedIds.length === tableRowIds.length) {
+      setSelectedIds([]);
+      setLastSelectedIndex(null);
+    } else {
+      setSelectedIds(tableRowIds);
+      setLastSelectedIndex(tableRowIds.length - 1);
+    }
+  };
+
   const breadcrumbs = useMemo(() => {
     const crumbs = [{ name: "Home", path: [] }];
     let nodes = folderTree;
@@ -361,11 +450,14 @@ function Dashboard() {
       const isExpanded = expandedNodes.includes(node.id);
       const hasChildren = (node.children || []).length > 0;
       const isActive = pathStack[pathStack.length - 1] === node.id;
+      const isSelected = selectedNodeId === node.id;
       return (
         <div key={node.id}>
           <div
             className={`flex items-center gap-1 rounded-md px-2 py-1 text-xs transition ${
-              isActive ? "bg-white/10 text-white" : "text-slate-300"
+              isActive || isSelected
+                ? "bg-white/10 text-white"
+                : "text-slate-300"
             }`}
             style={{ paddingLeft: `${depth * 12 + 4}px` }}
           >
@@ -383,7 +475,7 @@ function Dashboard() {
             </button>
             <button
               type="button"
-              onClick={() => setSelectedId(node.id)}
+              onClick={() => setSelectedNodeId(node.id)}
               onDoubleClick={() => navigateToPath(nodePath)}
               className="flex flex-1 items-center gap-2 text-left"
             >
@@ -426,9 +518,11 @@ function Dashboard() {
             <button
               type="button"
               onDoubleClick={() => navigateToPath([])}
-              onClick={() => setSelectedId("root")}
+              onClick={() => setSelectedNodeId("root")}
               className={`mb-2 flex w-full items-center gap-2 rounded-md px-2 py-1 text-xs ${
-                isRoot ? "bg-white/10 text-white" : "text-slate-300"
+                isRoot || selectedNodeId === "root"
+                  ? "bg-white/10 text-white"
+                  : "text-slate-300"
               }`}
             >
               <Folder size={14} className="text-amber-400" />
@@ -547,6 +641,11 @@ function Dashboard() {
                 <span className="flex items-center">
                   <input
                     type="checkbox"
+                    checked={
+                      tableRowIds.length > 0 &&
+                      selectedIds.length === tableRowIds.length
+                    }
+                    onChange={handleToggleAll}
                     className="h-3 w-3 rounded border-white/30 bg-slate-900"
                   />
                 </span>
@@ -558,12 +657,14 @@ function Dashboard() {
                 <span>Action</span>
               </div>
               <div className="divide-y divide-white/5">
-                {tableRows.map((row) => {
-                  const isSelected = selectedId === row.id;
+                {tableRows.map((row, index) => {
+                  const isSelected = selectedIds.includes(row.id);
                   return (
                     <div
                       key={row.id}
-                      onClick={() => setSelectedId(row.id)}
+                      onClick={(event) =>
+                        handleRowSelect(event, row, index)
+                      }
                       onDoubleClick={() => {
                         if (row.kind === "folder") {
                           navigateToPath(row.path);
@@ -577,6 +678,10 @@ function Dashboard() {
                     >
                       <input
                         type="checkbox"
+                        checked={selectedIds.includes(row.id)}
+                        onChange={(event) =>
+                          handleToggleRow(event, row, index)
+                        }
                         className="h-3 w-3 rounded border-white/30 bg-slate-900"
                       />
                       <div className="flex items-center gap-2">
